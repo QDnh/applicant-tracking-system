@@ -5,8 +5,8 @@ from . import views
 app_name = "skills"
 
 urlpatterns = [
-    path("", views.skill_list, name="list"),
-    path("new/", views.skill_create, name="create"),
-    path("<int:pk>/edit/", views.skill_update, name="update"),
-    path("<int:pk>/delete/", views.skill_delete, name="delete"),
+    path("", views.SkillListView.as_view(), name="list"),
+    path("new/", views.SkillCreateView.as_view(), name="create"),
+    path("<int:pk>/edit/", views.SkillUpdateView.as_view(), name="update"),
+    path("<int:pk>/delete/", views.SkillDeleteView.as_view(), name="delete"),
 ]

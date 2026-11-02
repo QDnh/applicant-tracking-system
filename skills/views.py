@@ -1,46 +1,51 @@
 from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect, render
+from django.contrib.messages.views import SuccessMessageMixin
+from django.shortcuts import redirect
+from django.urls import reverse_lazy
+from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
 from .forms import SkillForm
 from .models import Skill
 
 
-def skill_list(request):
-    return render(request, "skills/skill_list.html", {"skills": Skill.objects.all()})
+class SkillListView(ListView):
+    model = Skill
+    context_object_name = "skills"
 
 
-def skill_create(request):
-    form = SkillForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        skill = form.save()
-        messages.success(request, f'Skill "{skill}" added.')
-        return redirect("skills:list")
-    return render(request, "skills/skill_form.html", {"form": form})
+class SkillCreateView(SuccessMessageMixin, CreateView):
+    model = Skill
+    form_class = SkillForm
+    success_url = reverse_lazy("skills:list")
+    success_message = 'Skill "%(name)s" added.'
 
 
-def skill_update(request, pk):
-    skill = get_object_or_404(Skill, pk=pk)
-    form = SkillForm(request.POST or None, instance=skill)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, f'Skill renamed to "{skill}".')
-        return redirect("skills:list")
-    return render(request, "skills/skill_form.html", {"form": form, "skill": skill})
+class SkillUpdateView(SuccessMessageMixin, UpdateView):
+    model = Skill
+    form_class = SkillForm
+    success_url = reverse_lazy("skills:list")
+    success_message = 'Skill renamed to "%(name)s".'
 
 
-def skill_delete(request, pk):
-    skill = get_object_or_404(Skill, pk=pk)
-    job_count = skill.job_openings.count()
-    if job_count:
-        uses = "job opening uses" if job_count == 1 else "job openings use"
-        messages.error(
-            request,
-            f'Skill "{skill}" can\'t be deleted because {job_count} {uses} it. '
-            "Remove it from those jobs first.",
-        )
-        return redirect("skills:list")
-    if request.method == "POST":
-        skill.delete()
-        messages.success(request, f'Skill "{skill}" deleted.')
-        return redirect("skills:list")
-    return render(request, "skills/skill_confirm_delete.html", {"skill": skill})
+class SkillDeleteView(DeleteView):
+    model = Skill
+    success_url = reverse_lazy("skills:list")
+
+    def dispatch(self, request, *args, **kwargs):
+        # Refuse both the confirm page (GET) and the delete itself (POST) while in use.
+        skill = self.get_object()
+        job_count = skill.job_openings.count()
+        if job_count:
+            uses = "job opening uses" if job_count == 1 else "job openings use"
+            messages.error(
+                request,
+                f'Skill "{skill}" can\'t be deleted because {job_count} {uses} it. '
+                "Remove it from those jobs first.",
+            )
+            return redirect("skills:list")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f'Skill "{self.object}" deleted.')
+        return response

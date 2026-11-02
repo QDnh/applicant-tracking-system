@@ -5,10 +5,10 @@ from . import views
 app_name = "jobs"
 
 urlpatterns = [
-    path("", views.job_list, name="list"),
-    path("new/", views.job_create, name="create"),
-    path("<int:pk>/", views.job_detail, name="detail"),
-    path("<int:pk>/edit/", views.job_update, name="update"),
-    path("<int:pk>/delete/", views.job_delete, name="delete"),
-    path("<int:pk>/toggle-status/", views.job_toggle_status, name="toggle_status"),
+    path("", views.JobListView.as_view(), name="list"),
+    path("new/", views.JobCreateView.as_view(), name="create"),
+    path("<int:pk>/", views.JobDetailView.as_view(), name="detail"),
+    path("<int:pk>/edit/", views.JobUpdateView.as_view(), name="update"),
+    path("<int:pk>/delete/", views.JobDeleteView.as_view(), name="delete"),
+    path("<int:pk>/toggle-status/", views.JobToggleStatusView.as_view(), name="toggle_status"),
 ]
