@@ -22,7 +22,7 @@ If no, skip the /tdd skill and move on to implementing the specified phase.
 
 ## 3. Run Feedback Loops
 
-Run the pytest suite to ensure all tests passed.
+Run the pytest suite to ensure all tests pass.
 Run ruff checks.
 
 ## 4. Manual Verification
@@ -38,6 +38,9 @@ newest entry at the top (line 31); record every prompt the user gave you this se
 in order, including any corrections; end the entry with a short summary: the outcome, 
 any places where the user deviated from a recommended answer or asked follow-up questions, 
 and anything that went sideways.
+Prompts after PROMPTS.md is appended are intentionally left out.
 
-Ask the user whether to commit the changes to GitHub.
+Ask the user whether to commit and push the changes to GitHub.
 If yes, ask for a title for the commit.
+Assume commit to current branch.
+Use just the title; do not add co-author line.
