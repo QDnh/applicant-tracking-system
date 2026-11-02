@@ -221,3 +221,6 @@ __marimo__/
 
 # Tailwind build output (regenerate with: uv run python manage.py tailwind build)
 assets/css/tailwind.css
+
+# Git Bash / MSYS crash dumps (Windows)
+*.stackdump

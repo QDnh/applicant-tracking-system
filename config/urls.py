@@ -6,6 +6,7 @@ urlpatterns = [
     path("", RedirectView.as_view(pattern_name="jobs:list"), name="home"),
     path("accounts/", include("django.contrib.auth.urls")),
     path("admin/", admin.site.urls),
+    path("candidates/", include("candidates.urls")),
     path("jobs/", include("jobs.urls")),
     path("skills/", include("skills.urls")),
 ]

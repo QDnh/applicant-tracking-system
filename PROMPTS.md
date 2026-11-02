@@ -28,6 +28,37 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-11-02 — Implemented Phase 4: Candidates (TDD for email normalisation/uniqueness, list search, and create-redirect to detail)
+
+### Prompts
+1. `/implement @prd/applicant-tracking-system.md @plans/applicant-tracking-system.md implement Phase 4.`
+2. (Answer to "Run /tdd?") Yes, run /tdd.
+3. yes, approved
+4. yes, approved
+5. yes, move on to behavior 2
+6. Will it not show up if we search a full-name?
+7. go with option 2
+8. yes, move on to behavior 3
+9. Keep it. A safeguard in case something breaks later.
+10. (Correction, given when Claude moved on to the remaining tests) I should have specified. Can you break it and make sure it can fail? Then fix things and keep it.
+11. verified in the browser, continue
+12. (Answer to "Append PROMPTS.md?") Yes, append it.
+
+### Summary
+- **Outcome:**
+  - Added the `Candidate` model (first/last name, unique email, optional phone, fixed `Source` choices, optional notes, Active/Deactivated/Archived status defaulting to Active, timestamps), migration `candidates/0001`, and admin registration.
+  - Built the candidate list (search via `?q=`, archived hidden), create (redirects to the candidate page), detail (details, source label, notes), edit, and delete-confirmation pages (`candidates/forms.py`, `candidates/views.py`, `candidates/urls.py`, four templates); wired `candidates/` into `config/urls.py` and enabled the Candidates nav link.
+  - Three TDD cycles. Email normalisation/uniqueness went RED (email stored as typed), then GREEN with `Candidate.save()` lowercasing and `CandidateForm.clean_email()` doing a case-insensitive check excluding self. List search (seven parametrized cases) went RED (unfiltered list), then GREEN with `icontains` on first name, last name, email and a `Concat` "first last" name. The create-redirect/detail test passed on first run.
+  - Ten more normal tests: fixed source choices, required fields, new candidates default to Active, edit keeping own email, edit to another candidate's email refused, delete after confirming, archived hidden from list, nav link, and login required on candidate pages.
+  - Results: 55 tests pass; `ruff check`, `ruff format --check`, and `makemigrations --check` pass. The user verified the phase in the browser.
+- **Deviations:**
+  - The user asked whether a full-name search would match. Claude confirmed it would not under the plan's per-field matching and offered three options, recommending matching "first last" as well; the user chose that (option 2), going slightly beyond the plan's wording. A `"jane doe"` case was added to the search test.
+  - For behavior 3, Claude recommended keeping the test as a regular test without proving it can fail; the user said keep it, then clarified they wanted it broken first.
+- **Sideways:**
+  - Behavior 3 was a weak TDD pick: the scaffolding (copied from the jobs pattern) already redirected to the detail page and showed the source label, so the test never went RED. Claude flagged this rather than presenting it as a TDD cycle. At the user's request it temporarily broke the redirect and then the source label, confirmed the test failed on each assertion, restored both, and confirmed GREEN. Claude saved a memory to do this by default in future.
+  - Claude's first attempt to append the remaining tests was rejected by the user to do the break-and-restore first; the tests were appended afterward unchanged.
+  - One over-long line in `candidates/forms.py` failed `ruff check`/`format --check`; fixed with `ruff format`.
+
 ## 2026-11-02 — Implemented Phase 3: Job openings (TDD for skill delete block, list tab/search, and Open/Closed toggle)
 
 ### Prompts

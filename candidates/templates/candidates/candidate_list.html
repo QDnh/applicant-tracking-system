@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Candidates{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+  <h1 class="text-2xl font-bold">Candidates</h1>
+  <a href="{% url 'candidates:create' %}" class="btn btn-primary btn-sm">New candidate</a>
+</div>
+
+<div class="flex flex-wrap items-center justify-end gap-4 mb-4">
+  {# The status tabs arrive in Phase 10 and will be added to this form as a hidden "status" field. #}
+  <form method="get" class="join">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search by name or email"
+           class="input input-bordered input-sm join-item">
+    <button type="submit" class="btn btn-sm join-item">Search</button>
+    {% if q %}<a href="?" class="btn btn-sm btn-ghost join-item">Clear</a>{% endif %}
+  </form>
+</div>
+
+<div class="card bg-base-100 shadow">
+  <div class="card-body">
+    {% if candidates %}
+    <table class="table">
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Source</th><th>Added</th></tr>
+      </thead>
+      <tbody>
+        {% for candidate in candidates %}
+        <tr>
+          <td><a href="{% url 'candidates:detail' candidate.pk %}" class="link link-hover font-medium">{{ candidate.full_name }}</a></td>
+          <td>{{ candidate.email }}</td>
+          <td>{{ candidate.get_source_display }}</td>
+          <td>{{ candidate.created_at|date:"M j, Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="opacity-70">
+      {% if q %}No candidates match “{{ q }}”.{% else %}No candidates yet.{% endif %}
+    </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
