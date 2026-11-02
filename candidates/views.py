@@ -2,8 +2,11 @@ from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import Q, Value
 from django.db.models.functions import Concat
+from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
+
+from applications.forms import RecordApplicationFromCandidateForm
 
 from .forms import CandidateForm
 from .models import Candidate
@@ -37,6 +40,13 @@ class CandidateDetailView(DetailView):
     template_name = "candidates/candidate_detail.html"
     context_object_name = "candidate"
 
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(
+            applications=self.object.applications.select_related("job_opening"),
+            record_form=RecordApplicationFromCandidateForm(candidate=self.object),
+            **kwargs,
+        )
+
 
 class CandidateFormMixin(SuccessMessageMixin):
     model = Candidate
@@ -61,6 +71,19 @@ class CandidateDeleteView(DeleteView):
     template_name = "candidates/candidate_confirm_delete.html"
     context_object_name = "candidate"
     success_url = reverse_lazy("candidates:list")
+
+    def dispatch(self, request, *args, **kwargs):
+        # Refuse both the confirm page (GET) and the delete itself (POST) once any
+        # application exists; the PROTECT foreign key enforces the same at the database.
+        candidate = self.get_object()
+        if candidate.applications.exists():
+            messages.error(
+                request,
+                f"Candidate {candidate} can't be deleted because they have applications. "
+                "Archive them instead to hide the record while keeping its history.",
+            )
+            return redirect(candidate)
+        return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
         response = super().form_valid(form)

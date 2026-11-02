@@ -6,6 +6,9 @@ from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 from django.views.generic.detail import SingleObjectMixin
 
+from applications.forms import RecordApplicationFromJobForm
+from applications.models import Application
+
 from .forms import JobOpeningForm
 from .models import JobOpening
 
@@ -37,6 +40,15 @@ class JobDetailView(DetailView):
     template_name = "jobs/job_detail.html"
     context_object_name = "job"
 
+    def get_context_data(self, **kwargs):
+        applications = self.object.applications.select_related("candidate")
+        return super().get_context_data(
+            applications=applications,
+            active_count=applications.filter(stage__in=Application.ACTIVE_STAGES).count(),
+            record_form=RecordApplicationFromJobForm(job=self.object),
+            **kwargs,
+        )
+
 
 class JobFormMixin(SuccessMessageMixin):
     model = JobOpening
@@ -61,6 +73,19 @@ class JobDeleteView(DeleteView):
     template_name = "jobs/job_confirm_delete.html"
     context_object_name = "job"
     success_url = reverse_lazy("jobs:list")
+
+    def dispatch(self, request, *args, **kwargs):
+        # Refuse both the confirm page (GET) and the delete itself (POST) once any
+        # application exists; the PROTECT foreign key enforces the same at the database.
+        job = self.get_object()
+        if job.applications.exists():
+            messages.error(
+                request,
+                f'Job opening "{job}" can\'t be deleted because it has applications. '
+                "Close it instead to stop new applications.",
+            )
+            return redirect(job)
+        return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
         response = super().form_valid(form)

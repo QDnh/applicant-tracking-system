@@ -1,4 +1,5 @@
 from django.db import models
+from django.urls import reverse
 
 
 class Candidate(models.Model):
@@ -35,6 +36,9 @@ class Candidate(models.Model):
         # Stored lowercase so the unique constraint ignores case.
         self.email = self.email.strip().lower()
         super().save(*args, **kwargs)
+
+    def get_absolute_url(self):
+        return reverse("candidates:detail", args=[self.pk])
 
     @property
     def full_name(self):

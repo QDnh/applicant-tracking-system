@@ -39,4 +39,43 @@
     </div>
   </div>
 </div>
+
+<div class="card bg-base-100 shadow mt-6">
+  <div class="card-body gap-4">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <h2 class="card-title">Applications</h2>
+      {% if candidate.status == "active" %}
+      <form method="post" action="{% url 'applications:record_from_candidate' candidate.pk %}" class="flex items-end gap-2">
+        {% csrf_token %}
+        <label class="form-control">
+          <span class="label-text mb-1">Apply to a job</span>
+          {{ record_form.job_opening }}
+        </label>
+        <button type="submit" class="btn btn-primary">Apply</button>
+      </form>
+      {% else %}
+      <p class="text-sm opacity-70">This candidate isn't active, so no new applications can be recorded.</p>
+      {% endif %}
+    </div>
+
+    {% if applications %}
+    <table class="table">
+      <thead>
+        <tr><th>Job opening</th><th>Stage</th><th>Applied</th></tr>
+      </thead>
+      <tbody>
+        {% for application in applications %}
+        <tr>
+          <td><a href="{% url 'jobs:detail' application.job_opening.pk %}" class="link link-hover font-medium">{{ application.job_opening.title }}</a></td>
+          <td><span class="badge badge-outline">{{ application.get_stage_display }}</span></td>
+          <td>{{ application.applied_at|date:"M j, Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="opacity-70">No applications yet.</p>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}

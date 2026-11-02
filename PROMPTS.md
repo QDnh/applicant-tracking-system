@@ -28,6 +28,39 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-11-02 — Implemented Phase 5: Recording applications (TDD for reapply rules, picker eligibility, and record-from-job with first history row)
+
+### Prompts
+1. `/implement @prd/applicant-tracking-system.md @plans/applicant-tracking-system.md implement Phase 5.`
+2. (Answer to "Run /tdd?") Yes, run /tdd.
+3. approved, go ahead
+4. approved, go ahead
+5. approved, go ahead
+6. I think so.
+7. approved, go ahead
+8. approved, go ahead
+9. approved, go ahead
+10. (Sent mid-turn while Claude was breaking and restoring the normal tests) Wait, why are you doing that?
+11. Where is the rule saying normal tests require breaking?
+12. Yes, please.
+13. continue
+14. (Answers to "Append PROMPTS.md?" and "Commit and push?") Yes, append it; Yes, commit and push.
+
+### Summary
+- **Outcome:**
+  - Added the `Application` model (candidate and job FKs with `PROTECT`, eight-value `Stage` choices, `ACTIVE_STAGES`/`NON_BLOCKING_STAGES`, timestamps) with a conditional `UniqueConstraint` on (candidate, job opening) for stages other than Rejected/Withdrawn, and the append-only `StageChange` model; migration `applications/0001`; read-only admin with a history inline.
+  - `Application.record()` is the single entry point for new applications: it refuses closed jobs, non-Active candidates and blocking (active or Hired) pairs, then creates the application and its `"" → Applied` StageChange (by the current user) in one transaction, turning a constraint `IntegrityError` into the same validation error. `eligible_candidates(job)` and `eligible_jobs(candidate)` drive both pickers.
+  - POST-only record endpoints `/applications/new/from-job/<pk>/` and `/applications/new/from-candidate/<pk>/` redirect back with a message. The job page has the Record application form, an applications table (candidate, source, stage, applied date) and an active-application count (also on closed jobs); the candidate page has Apply to a job and a simple applications list. Deleting a candidate or job with applications is refused (suggesting archive or close). Added `get_absolute_url` to `Candidate` and `JobOpening`.
+  - Three TDD cycles, all with a proper RED: reapply rules (6 blocking cases did not raise), picker eligibility (extra deactivated/archived/blocked candidates offered), and record-from-job (no history row written). Fourteen normal tests cover the constraint without validation, several jobs at once, the candidate-page endpoint, direct-POST refusals, inactive candidates, active count, lists, delete blocks, protected FKs, POST-only and login.
+  - Results: 79 tests pass; `ruff check` and `ruff format --check` pass. The user checked the phase in the browser.
+- **Deviations:**
+  - The user stopped Claude mid-turn to ask why it was breaking and restoring the normal tests, then asked where the rule requiring that was. Claude reread the memory, confirmed the rule only covers TDD tests that go green on first run, and agreed it had over-applied it. At the user's request the `MEMORY.md` pointer was reworded to say "TDD test … (not normal tests)".
+- **Sideways:**
+  - Claude broke and restored code for normal tests (behaviour 1's constraint and several-jobs tests, then nine of the remaining tests) under a misreading of the memory rule. All code was restored and the suite stayed green; the `MEMORY.md` pointer's broader wording caused the misreading.
+  - Behaviour 3's first run failed with a `DoesNotExist` exception rather than an assertion; Claude rewrote that check as an assertion on the history list before asking for approval.
+  - The login-required test initially used `client` and `logged_in_client` as if separate, but they are the same object, so the "anonymous" POST was logged in; fixed by logging out first.
+  - Ruff's DJ012 flagged `get_absolute_url` placed before `save()` on `Candidate`; reordered.
+
 ## 2026-11-02 — Implemented Phase 4: Candidates (TDD for email normalisation/uniqueness, list search, and create-redirect to detail)
 
 ### Prompts

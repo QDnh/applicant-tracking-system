@@ -16,6 +16,9 @@
           <span class="badge {% if job.is_open %}badge-success{% else %}badge-neutral{% endif %}">{{ job.get_status_display }}</span>
         </h1>
         <p class="opacity-70">{{ job.department|default:"No department" }}</p>
+        <p class="mt-1 text-sm">
+          <span class="font-semibold">{{ active_count }}</span> active application{{ active_count|pluralize }}{% if not job.is_open and active_count %} still to finish{% endif %}
+        </p>
       </div>
       <div class="flex gap-2">
         <form method="post" action="{% url 'jobs:toggle_status' job.pk %}">
@@ -44,6 +47,46 @@
       {% endif %}
       {% endwith %}
     </div>
+  </div>
+</div>
+
+<div class="card bg-base-100 shadow mt-6">
+  <div class="card-body gap-4">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <h2 class="card-title">Applications</h2>
+      {% if job.is_open %}
+      <form method="post" action="{% url 'applications:record_from_job' job.pk %}" class="flex items-end gap-2">
+        {% csrf_token %}
+        <label class="form-control">
+          <span class="label-text mb-1">Record application</span>
+          {{ record_form.candidate }}
+        </label>
+        <button type="submit" class="btn btn-primary">Record</button>
+      </form>
+      {% else %}
+      <p class="text-sm opacity-70">This job is closed, so no new applications can be recorded.</p>
+      {% endif %}
+    </div>
+
+    {% if applications %}
+    <table class="table">
+      <thead>
+        <tr><th>Candidate</th><th>Source</th><th>Stage</th><th>Applied</th></tr>
+      </thead>
+      <tbody>
+        {% for application in applications %}
+        <tr>
+          <td><a href="{% url 'candidates:detail' application.candidate.pk %}" class="link link-hover font-medium">{{ application.candidate.full_name }}</a></td>
+          <td>{{ application.candidate.get_source_display }}</td>
+          <td><span class="badge badge-outline">{{ application.get_stage_display }}</span></td>
+          <td>{{ application.applied_at|date:"M j, Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="opacity-70">No applications yet.</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
