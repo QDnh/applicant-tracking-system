@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototype: Stage movement screens</title>
+<!-- Throwaway prototype. CDN Tailwind + DaisyUI (needs internet). HTMX swaps are simulated in plain JS. -->
+<link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style>
+  .flash { animation: flash 1.8s ease-out; }
+  @keyframes flash { 0% { background-color: #fde68a; } 100% { background-color: transparent; } }
+  /* Prototype switcher: deliberately NOT DaisyUI so it doesn't look like part of the design */
+  #switcher { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 50;
+    background: #111827; color: #f9fafb; font: 13px/1.4 ui-monospace, Consolas, monospace;
+    border-radius: 10px; padding: 10px 14px; width: min(920px, calc(100% - 24px)); box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+  #switcher .row { display: flex; align-items: center; gap: 10px; }
+  #switcher button { font: inherit; background: #374151; color: #f9fafb; border: 0; border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  #switcher button:hover { background: #4b5563; }
+  #switcher .name { font-weight: 700; min-width: 230px; }
+  #switcher .desc, #switcher .last { color: #d1d5db; margin-top: 6px; }
+  #switcher .last b { color: #fde68a; font-weight: 600; }
+  body { padding-bottom: 150px; }
+</style>
+</head>
+<body class="bg-base-200 min-h-screen">
+
+<!-- App shell (constant across variants: not the question being asked) -->
+<div class="navbar bg-base-100 shadow-sm px-6">
+  <div class="flex-1 gap-6 flex items-center">
+    <span class="text-lg font-bold">Applicant Tracking</span>
+    <ul class="menu menu-horizontal px-0 gap-1">
+      <li><a id="nav-jobs">Job openings</a></li>
+      <li><a id="nav-cands">Candidates</a></li>
+      <li><a>Skills</a></li>
+    </ul>
+  </div>
+  <div class="flex items-center gap-2 text-sm"><span class="opacity-70">Signed in as</span> <span class="font-semibold">Alex Rivera</span></div>
+</div>
+
+<main id="view" class="max-w-7xl mx-auto p-6"></main>
+
+<div id="switcher">
+  <div class="row">
+    <button id="prev" title="Previous (←)">←</button>
+    <span class="name" id="vname"></span>
+    <button id="next" title="Next (→)">→</button>
+    <span style="flex:1"></span>
+    <button id="reset">Reset data</button>
+  </div>
+  <div class="desc" id="vdesc"></div>
+  <div class="last" id="vlast"></div>
+</div>
+
+<script>
+/* ---------- Settled stage rules (same as stage-transitions.html, plus 4b) ---------- */
+const ACTIVE = ['Applied', 'Screening', 'Interview', 'Final Review', 'Offer'];
+const FINAL = ['Hired', 'Rejected', 'Withdrawn'];
+const isFinal = (s) => FINAL.includes(s);
+function allowed(s) {
+  if (isFinal(s)) return [];
+  const i = ACTIVE.indexOf(s), m = [];
+  if (i < ACTIVE.length - 1) m.push({ to: ACTIVE[i + 1], kind: 'forward' });
+  if (i > 0) m.push({ to: ACTIVE[i - 1], kind: 'back' });
+  if (s === 'Offer') m.push({ to: 'Hired', kind: 'final' });
+  m.push({ to: 'Rejected', kind: 'final' }, { to: 'Withdrawn', kind: 'final' });
+  return m;
+}
+
+/* ---------- Fake data ---------- */
+const JOBS = {
+  jr: { title: 'Junior Developer', dept: 'Engineering', status: 'Open', skills: ['Python', 'Django', 'SQL', 'Git'] },
+  da: { title: 'Data Analyst', dept: 'Analytics', status: 'Open', skills: ['SQL', 'Excel', 'Python'] },
+  qa: { title: 'QA Tester', dept: 'Engineering', status: 'Closed', skills: ['Testing', 'Git'] },
+  it: { title: 'IT Intern', dept: 'IT', status: 'Closed', skills: ['Networking'] },
+  ss: { title: 'Support Specialist', dept: 'Customer Success', status: 'Closed', skills: ['Communication'] },
+};
+const CANDS = {
+  jane: { name: 'Jane Smith', email: 'jane.smith@example.com', phone: '(806) 555-0142', source: 'Referral', status: 'Active' },
+  marcus: { name: 'Marcus Lee', source: 'LinkedIn' }, priya: { name: 'Priya Patel', source: 'Company Website' },
+  daniel: { name: 'Daniel Kim', source: 'Job Board' }, aisha: { name: 'Aisha Bello', source: 'Career Fair' },
+  tom: { name: 'Tom Nguyen', source: 'LinkedIn' }, elena: { name: 'Elena Rossi', source: 'Referral' },
+};
+function seed() {
+  return {
+    apps: [
+      { id: 1, c: 'jane', j: 'jr', stage: 'Interview', applied: 'Oct 14' },
+      { id: 2, c: 'marcus', j: 'jr', stage: 'Screening', applied: 'Oct 18' },
+      { id: 3, c: 'priya', j: 'jr', stage: 'Offer', applied: 'Oct 2' },
+      { id: 4, c: 'daniel', j: 'jr', stage: 'Applied', applied: 'Oct 27' },
+      { id: 5, c: 'aisha', j: 'jr', stage: 'Final Review', applied: 'Oct 9' },
+      { id: 6, c: 'tom', j: 'jr', stage: 'Rejected', applied: 'Oct 5' },
+      { id: 7, c: 'elena', j: 'jr', stage: 'Applied', applied: 'Oct 29' },
+      { id: 8, c: 'jane', j: 'da', stage: 'Screening', applied: 'Oct 20' },
+      { id: 9, c: 'jane', j: 'qa', stage: 'Applied', applied: 'Oct 25' },
+      { id: 10, c: 'priya', j: 'da', stage: 'Applied', applied: 'Oct 22' },
+      { id: 11, c: 'jane', j: 'it', stage: 'Hired', applied: 'Apr 2, 2025' },
+      { id: 12, c: 'jane', j: 'ss', stage: 'Withdrawn', applied: 'Jan 8, 2026' },
+    ],
+    history: [
+      // Older history first (array order = time order)
+      { app: 11, from: null, to: 'Applied', by: 'Sam', at: 'Apr 2, 2025' },
+      { app: 11, from: 'Offer', to: 'Hired', by: 'Sam', at: 'May 19, 2025' },
+      { app: 12, from: null, to: 'Applied', by: 'Alex', at: 'Jan 8, 2026' },
+      { app: 12, from: 'Screening', to: 'Withdrawn', by: 'Alex', at: 'Jan 30, 2026' },
+      { app: 1, from: null, to: 'Applied', by: 'Sam', at: 'Oct 14' },
+      { app: 1, from: 'Applied', to: 'Screening', by: 'Sam', at: 'Oct 16' },
+      { app: 1, from: 'Screening', to: 'Interview', by: 'Alex', at: 'Oct 21' },
+      { app: 8, from: null, to: 'Applied', by: 'Sam', at: 'Oct 20' },
+      { app: 8, from: 'Applied', to: 'Screening', by: 'Alex', at: 'Oct 24' },
+      { app: 9, from: null, to: 'Applied', by: 'Sam', at: 'Oct 25' },
+    ],
+  };
+}
+let data = seed();
+let flashIds = [];
+let lastNote = 'Click any stage button. The yellow flash shows exactly which parts of the page the server would have to send back.';
+
+const app = (id) => data.apps.find((a) => a.id === id);
+const VERB = { Hired: 'Hire', Rejected: 'Reject', Withdrawn: 'Mark as withdrawn' };
+
+function confirmText(a, to) {
+  const n = CANDS[a.c].name, t = JOBS[a.j].title;
+  if (to === 'Withdrawn') return `Mark ${n} as withdrawn from ${t}?\n\nThis can't be undone.`;
+  let msg = `${VERB[to]} ${n} for ${t}?`;
+  if (to === 'Hired') {
+    const others = data.apps.filter((o) => o.c === a.c && o.id !== a.id && !isFinal(o.stage));
+    if (others.length) msg += `\n\n${others.length} other active application(s) (${others.map((o) => JOBS[o.j].title).join(', ')}) will be marked as withdrawn.`;
+  }
+  return msg + "\n\nThis can't be undone.";
+}
+
+// Returns ids of every application that changed.
+function move(id, to) {
+  const a = app(id), from = a.stage;
+  const changed = [id];
+  if (to === 'Hired') {
+    // Record the auto-withdrawals first, so the hire is the newest row and sorts above them
+    data.apps.filter((o) => o.c === a.c && o.id !== id && !isFinal(o.stage)).forEach((o) => {
+      data.history.push({ app: o.id, from: o.stage, to: 'Withdrawn', by: 'Alex', at: 'Just now', auto: true });
+      o.stage = 'Withdrawn';
+      changed.push(o.id);
+    });
+  }
+  a.stage = to;
+  data.history.push({ app: id, from, to, by: 'Alex', at: 'Just now' });
+  return { from, changed };
+}
+
+/* ---------- Shared bits ---------- */
+function stageBadge(s) {
+  const cls = s === 'Hired' ? 'badge-success' : s === 'Rejected' ? 'badge-error' : s === 'Withdrawn' ? 'badge-neutral' : 'badge-primary badge-outline';
+  return `<span class="badge ${cls} badge-sm whitespace-nowrap">${s}</span>`;
+}
+function moveButtons(a, size = 'btn-xs') {
+  const order = { back: 0, forward: 1, final: 2 }; // back on the left, forward on the right of it
+  return allowed(a.stage).slice().sort((x, y) => order[x.kind] - order[y.kind]).map((m) => {
+    const label = m.kind === 'forward' ? `${m.to} →` : m.kind === 'back' ? `← ${m.to}` : VERB[m.to];
+    const cls = m.kind === 'forward' ? 'btn-primary' : m.kind === 'back' ? 'btn-ghost' : m.to === 'Hired' ? 'btn-success' : m.to === 'Rejected' ? 'btn-error btn-outline' : 'btn-outline';
+    return `<button class="btn ${size} ${cls}" data-move="${a.id}" data-to="${m.to}">${label}</button>`;
+  }).join('');
+}
+function jobHeader(jobId) {
+  const j = JOBS[jobId];
+  const apps = data.apps.filter((a) => a.j === jobId);
+  const activeN = apps.filter((a) => !isFinal(a.stage)).length;
+  const hiredN = apps.filter((a) => a.stage === 'Hired').length;
+  return `<div class="text-sm breadcrumbs opacity-70"><ul><li>Job openings</li><li>${j.title}</li></ul></div>
+  <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+    <div>
+      <h1 class="text-2xl font-bold flex items-center gap-3">${j.title}
+        <span class="badge ${j.status === 'Open' ? 'badge-success' : 'badge-ghost'}">${j.status}</span></h1>
+      <div class="opacity-70 text-sm mt-1">${j.dept} · ${activeN} active · ${hiredN} hired</div>
+      <div class="flex gap-1 mt-2">${j.skills.map((s) => `<span class="badge badge-ghost badge-sm">${s}</span>`).join('')}</div>
+    </div>
+    <div class="flex gap-2"><button class="btn btn-sm">Edit job</button><button class="btn btn-sm">Close job</button>
+      <button class="btn btn-sm btn-primary">+ Record application</button></div>
+  </div>`;
+}
+
+/* ---------- Variant A: job page with a table ---------- */
+function variantA() {
+  const rows = data.apps.filter((a) => a.j === 'jr').map((a) => {
+    const c = CANDS[a.c], done = isFinal(a.stage);
+    return `<tr id="el-${a.id}" class="${done ? 'opacity-60' : ''}">
+      <td><div class="font-semibold">${c.name}</div><div class="text-xs opacity-60">${c.source}</div></td>
+      <td>${stageBadge(a.stage)}</td>
+      <td class="text-sm opacity-70">${a.applied}</td>
+      <td><div class="flex flex-wrap gap-1 justify-end">${done ? '<span class="text-xs opacity-60">Final, no moves</span>' : moveButtons(a)}</div></td>
+    </tr>`;
+  }).join('');
+  return `${jobHeader('jr')}
+  <div class="card bg-base-100 shadow-sm"><div class="overflow-x-auto">
+    <table class="table">
+      <thead><tr><th>Candidate</th><th>Stage</th><th>Applied</th><th class="text-right">Move</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></div>`;
+}
+
+/* ---------- Variant B: Kanban board ---------- */
+function variantB() {
+  const apps = data.apps.filter((a) => a.j === 'jr');
+  const card = (a) => {
+    const c = CANDS[a.c], done = isFinal(a.stage);
+    const back = allowed(a.stage).find((m) => m.kind === 'back');
+    const fwd = allowed(a.stage).find((m) => m.kind === 'forward');
+    const finals = allowed(a.stage).filter((m) => m.kind === 'final');
+    return `<div id="el-${a.id}" class="card bg-base-100 shadow-sm ${done ? 'opacity-60' : ''}"><div class="card-body p-3 gap-1">
+      <div class="font-semibold text-sm">${c.name}</div>
+      <div class="text-xs opacity-60">${c.source} · ${a.applied}</div>
+      ${done ? `<div>${stageBadge(a.stage)}</div>` : `<div class="flex items-center gap-1 mt-1">
+        ${back ? `<button class="btn btn-xs btn-ghost" title="Back to ${back.to}" data-move="${a.id}" data-to="${back.to}">←</button>` : '<span class="w-6"></span>'}
+        ${fwd ? `<button class="btn btn-xs btn-primary" title="Advance to ${fwd.to}" data-move="${a.id}" data-to="${fwd.to}">→</button>` : ''}
+        <span class="flex-1"></span>
+        <div class="dropdown dropdown-end">
+          <div tabindex="0" role="button" class="btn btn-xs btn-ghost">⋯</div>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-10 w-44 p-1 shadow">
+            ${finals.map((m) => `<li><button data-move="${a.id}" data-to="${m.to}" class="${m.to === 'Rejected' ? 'text-error' : ''}">${VERB[m.to]}</button></li>`).join('')}
+          </ul></div></div>`}
+    </div></div>`;
+  };
+  const col = (key, title, list) => `<div id="col-${key}" class="bg-base-300/50 rounded-box p-2 w-56 shrink-0">
+    <div class="flex justify-between items-center px-1 mb-2"><span class="font-semibold text-sm">${title}</span><span class="badge badge-sm">${list.length}</span></div>
+    <div class="flex flex-col gap-2">${list.map(card).join('') || '<div class="text-xs opacity-50 px-1 py-4 text-center">Empty</div>'}</div></div>`;
+  const cols = ACTIVE.map((s) => col(s.replace(' ', '-'), s, apps.filter((a) => a.stage === s))).join('')
+    + col('Closed', 'Closed (Hired / Rejected / Withdrawn)', apps.filter((a) => isFinal(a.stage)));
+  return `${jobHeader('jr')}<div class="flex gap-3 overflow-x-auto pb-3">${cols}</div>`;
+}
+
+/* ---------- Variant C: candidate page ---------- */
+function variantC() {
+  const c = CANDS.jane;
+  const apps = data.apps.filter((a) => a.c === 'jane');
+  const steps = (a) => {
+    const idx = isFinal(a.stage) ? -1 : ACTIVE.indexOf(a.stage);
+    return `<ul class="steps steps-horizontal w-full text-xs">${ACTIVE.map((s, i) => `<li class="step ${i <= idx ? 'step-primary' : ''}">${s}</li>`).join('')}</ul>`;
+  };
+  // Most recent activity = position of the application's latest history row (array order = time order)
+  const lastIdx = (id) => data.history.map((h) => h.app).lastIndexOf(id);
+  const lastAt = (id) => data.history[lastIdx(id)].at;
+  const byRecent = (x, y) => lastIdx(y.id) - lastIdx(x.id);
+  const card = (a) => {
+    const j = JOBS[a.j], done = isFinal(a.stage);
+    return `<div id="el-${a.id}" class="card bg-base-100 shadow-sm ${done ? 'opacity-60' : ''}"><div class="card-body p-5 gap-3">
+      <div class="flex flex-wrap justify-between gap-2">
+        <div><div class="font-semibold">${j.title} <span class="badge badge-sm ${j.status === 'Open' ? 'badge-success' : 'badge-ghost'} ml-1">${j.status}</span></div>
+          <div class="text-xs opacity-60">${j.dept} · applied ${a.applied}</div></div>
+        <div class="text-right">${stageBadge(a.stage)}${done ? `<div class="text-xs opacity-60 mt-1">${a.stage} ${lastAt(a.id)}</div>` : ''}</div>
+      </div>
+      ${done ? '' : steps(a)}
+      ${done ? '' : `<div class="flex flex-wrap gap-1">${moveButtons(a, 'btn-sm')}</div>`}
+    </div></div>`;
+  };
+  // Active: newest application first (by id = applied order). Stable: moving a stage never reorders cards.
+  const active = apps.filter((a) => !isFinal(a.stage)).sort((x, y) => y.id - x.id);
+  const past = apps.filter((a) => isFinal(a.stage)).sort(byRecent);
+  const cards = `<h2 class="font-semibold">Active applications (${active.length})</h2>
+      ${active.map(card).join('') || '<div class="text-sm opacity-60">No active applications.</div>'}
+      <h2 class="font-semibold pt-2">Past applications (${past.length})</h2>
+      ${past.map(card).join('') || '<div class="text-sm opacity-60">No past applications.</div>'}`;
+  const hist = data.history.filter((h) => app(h.app).c === 'jane').slice().reverse().slice(0, 8).map((h) =>
+    `<li class="text-sm py-1"><span class="opacity-60 w-20 inline-block">${h.at}</span> ${JOBS[app(h.app).j].title}: ${h.from ? `${h.from} → ` : 'recorded as '}<b>${h.to}</b>
+      <span class="opacity-60">by ${h.by}${h.auto ? ' (automatic, after hire)' : ''}</span></li>`).join('');
+  return `<div class="text-sm breadcrumbs opacity-70"><ul><li>Candidates</li><li>${c.name}</li></ul></div>
+  <div class="grid lg:grid-cols-3 gap-5">
+    <div class="card bg-base-100 shadow-sm h-fit"><div class="card-body">
+      <h1 class="text-2xl font-bold">${c.name}</h1>
+      <span class="badge badge-success">${c.status}</span>
+      <div class="text-sm mt-2 space-y-1"><div>${c.email}</div><div>${c.phone}</div><div class="opacity-70">Source: ${c.source}</div></div>
+      <div class="flex gap-2 mt-3"><button class="btn btn-sm">Edit</button><button class="btn btn-sm">Deactivate</button><button class="btn btn-sm">Archive</button></div>
+    </div></div>
+    <div class="lg:col-span-2 space-y-4">
+      ${cards}
+      <div class="card bg-base-100 shadow-sm"><div class="card-body p-5"><h2 class="font-semibold">Recent stage history</h2><ul>${hist}</ul></div></div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Variants + what HTMX would have to do ---------- */
+const VARIANTS = [
+  { key: 'A', name: 'Job page · table', render: variantA,
+    desc: 'One row per application on the Junior Developer page. Each button swaps just its own row.',
+    note: (id, from, to, changed) => {
+      const onPage = changed.filter((x) => app(x).j === 'jr');
+      return `Server returns <b>1 table row</b> (hx-target="closest tr", hx-swap="outerHTML"). ${from} → ${to}. Row order never changes.`
+        + (changed.length > onPage.length ? ` ${changed.length - onPage.length} other application(s) withdrawn on other jobs' pages, so nothing extra to update here.` : '');
+    } },
+  { key: 'B', name: 'Job page · Kanban board', render: variantB,
+    desc: 'One column per active stage, plus one Closed column. Arrows move a card; ⋯ holds Hire / Reject / Mark as withdrawn.',
+    note: (id, from, to) => `Server must update <b>2 columns</b> ("${isFinal(from) ? 'Closed' : from}" loses the card, "${isFinal(to) ? 'Closed' : to}" gains it), plus both counts. Needs hx-swap-oob or redrawing the whole board.` },
+  { key: 'C', name: 'Candidate page', render: variantC,
+    desc: "Jane's page: her details, every application she has (one card each, with a progress bar), and her recent history.",
+    note: (id, from, to, changed) => changed.length > 1
+      ? `Hiring changed <b>${changed.length} cards on this page</b> (the hire + ${changed.length - 1} auto-withdrawn) plus the history list. Needs several out-of-band swaps or redrawing the page section.`
+      : `Server returns <b>1 card</b> plus the history list (2 regions). ${from} → ${to}.` },
+];
+let v = Math.min(+(localStorage.getItem('stage-ui-variant') || 0), VARIANTS.length - 1);
+
+function render() {
+  const cur = VARIANTS[v];
+  document.getElementById('view').innerHTML = cur.render();
+  document.getElementById('vname').textContent = `${cur.key} of ${VARIANTS.length}: ${cur.name}`;
+  document.getElementById('vdesc').textContent = cur.desc;
+  document.getElementById('vlast').innerHTML = 'Last action: ' + lastNote;
+  document.getElementById('nav-jobs').className = cur.key === 'C' ? '' : 'menu-active';
+  document.getElementById('nav-cands').className = cur.key === 'C' ? 'menu-active' : '';
+  flashIds.forEach((id) => { const el = document.getElementById(id); if (el) el.classList.add('flash'); });
+  flashIds = [];
+}
+function go(d) { v = (v + d + VARIANTS.length) % VARIANTS.length; localStorage.setItem('stage-ui-variant', v); lastNote = 'Switched variant. Same data as before.'; render(); }
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.id === 'prev') return go(-1);
+  if (b.id === 'next') return go(1);
+  if (b.id === 'reset') { data = seed(); lastNote = 'Data reset.'; return render(); }
+  if (b.dataset.move) {
+    const id = +b.dataset.move, to = b.dataset.to, a = app(id);
+    if (isFinal(to) && !confirm(confirmText(a, to))) { lastNote = 'Cancelled at the confirmation (this is what hx-confirm looks like). Nothing changed.'; return render(); }
+    const { from, changed } = move(id, to);
+    const cur = VARIANTS[v];
+    lastNote = `${CANDS[a.c].name}: ` + cur.note(id, from, to, changed);
+    flashIds = changed.map((x) => `el-${x}`);
+    if (cur.key === 'B') flashIds.push(`col-${isFinal(from) ? 'Closed' : from.replace(' ', '-')}`, `col-${isFinal(to) ? 'Closed' : to.replace(' ', '-')}`);
+    render();
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if (e.key === 'ArrowLeft') go(-1);
+  if (e.key === 'ArrowRight') go(1);
+});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototype: Hiring stage rules</title>
+<style>
+  :root {
+    --accent: #4f46e5; --accent-soft: #eef2ff;
+    --ink: #1f2937; --muted: #6b7280; --line: #e5e7eb; --bg: #f9fafb;
+    --ok: #047857; --ok-bg: #ecfdf5; --bad: #b91c1c; --bad-bg: #fef2f2;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.5; }
+  main { max-width: 1120px; margin: 0 auto; padding: 32px 24px 64px; }
+  h1 { margin: 4px 0 6px; font-size: 26px; }
+  h2 { font-size: 17px; margin: 0 0 12px; }
+  .tag { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); font-weight: 600; }
+  .lede { color: var(--muted); margin: 0 0 6px; max-width: 860px; }
+  .rules { margin: 10px 0 0; padding-left: 20px; color: var(--ink); max-width: 860px; }
+  .rules li { margin: 2px 0; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 20px; margin-top: 20px; }
+  .grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 920px) { .grid { grid-template-columns: 1fr; } }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  button { font: inherit; font-size: 14px; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: var(--bad); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  select { font: inherit; font-size: 14px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+  .app { border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+  .app.closed { background: #fafafa; }
+  .app-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .pipeline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 12px; }
+  .chip { font-size: 13px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .chip.past { color: var(--ink); }
+  .chip.current { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .closed .chip { opacity: .55; }
+  .arrow { color: #d1d5db; }
+  .final { margin-left: 8px; font-size: 13px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+  .final-hired { background: var(--ok-bg); color: var(--ok); }
+  .final-rejected, .final-withdrawn { background: var(--bad-bg); color: var(--bad); }
+  .moves { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .try { border-top: 1px dashed var(--line); padding-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+  .msg { border-radius: 8px; padding: 12px 14px; border: 1px solid var(--line); background: #fff; }
+  .msg.ok { background: var(--ok-bg); border-color: #a7f3d0; }
+  .msg.bad { background: var(--bad-bg); border-color: #fecaca; }
+  .msg .label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+  .msg.ok .label { color: var(--ok); } .msg.bad .label { color: var(--bad); } .msg .label { color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  tr.new td { background: var(--accent-soft); }
+  .kind { font-size: 12px; color: var(--muted); }
+
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .tabs button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .steps { list-style: none; padding: 0; margin: 12px 0 0; }
+  .steps li { margin: 6px 0; display: flex; gap: 10px; align-items: center; }
+  .steps .num { width: 22px; text-align: right; color: var(--muted); font-size: 13px; }
+  .watch { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="tag">Throwaway prototype · not production code</div>
+  <h1>Hiring stage rules</h1>
+  <p class="lede"><strong>Question this answers:</strong> do the stage-movement rules from our design interview feel right once you actually push applications through them, including misclicks, repeated clicking, illegal moves and reapplying?</p>
+  <ul class="rules small">
+    <li>Active stages: Applied → Screening → Interview → Final Review → Offer. Final stages: Hired, Rejected, Withdrawn. Nothing moves out of a final stage.</li>
+    <li>From an active stage you can go <strong>one step forward</strong>, <strong>one step back</strong>, or to <strong>Reject</strong> or <strong>Withdraw</strong>. <strong>Hire</strong> is only possible from Offer.</li>
+    <li>Hire, Reject and Withdraw ask "are you sure?" first (the real app will use <code>hx-confirm</code>).</li>
+    <li>Every move adds one row to the stage history. Nothing is ever collapsed or deleted.</li>
+    <li>A candidate can have only one <em>active</em> application per job. Once it reaches a final stage, they can apply again.</li>
+  </ul>
+
+  <div class="card">
+    <div class="toolbar">
+      <span class="muted small">Acting staff member:</span>
+      <select id="staff"><option>Alex Rivera</option><option>Sam Patel</option></select>
+      <span style="flex:1"></span>
+      <button id="reset">Reset everything</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Applications</h2>
+        <div id="apps"></div>
+        <div class="try" style="border-top:none;padding-top:4px">
+          <span class="muted small">Record a new application:</span>
+          <select id="newCand"></select>
+          <select id="newJob"></select>
+          <button id="applyBtn">Record application</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h2>What just happened</h2>
+        <div id="msg"></div>
+      </div>
+      <div class="card">
+        <h2>Stage history <span class="muted small" id="histCount"></span></h2>
+        <div id="history"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Guided walkthroughs</h2>
+    <p class="muted small" style="margin-top:-6px">Picking a scenario resets everything to the starting point: Jane applied for Junior Developer, Marcus applied for Data Analyst. Click the steps in order.</p>
+    <div class="tabs" id="tabs"></div>
+    <div id="walk"></div>
+  </div>
+</main>
+
+<script>
+/* ===================== Pure logic module (no DOM) ===================== */
+const Hiring = (() => {
+  const ACTIVE = ['Applied', 'Screening', 'Interview', 'Final Review', 'Offer'];
+  const TERMINAL = ['Hired', 'Rejected', 'Withdrawn'];
+  const ALL = [...ACTIVE, ...TERMINAL];
+  const isTerminal = (stage) => TERMINAL.includes(stage);
+
+  // The transition map: which moves are legal from each stage.
+  function allowedMoves(stage) {
+    if (isTerminal(stage)) return [];
+    const i = ACTIVE.indexOf(stage);
+    const moves = [];
+    if (i < ACTIVE.length - 1) moves.push({ to: ACTIVE[i + 1], kind: 'forward' });
+    if (i > 0) moves.push({ to: ACTIVE[i - 1], kind: 'back' });
+    if (stage === 'Offer') moves.push({ to: 'Hired', kind: 'final' });
+    moves.push({ to: 'Rejected', kind: 'final' }, { to: 'Withdrawn', kind: 'final' });
+    return moves;
+  }
+
+  function whyNot(stage, to) {
+    if (stage === to) return `The application is already in ${to}.`;
+    if (isTerminal(stage)) return `${stage} is a final stage, so nothing can move out of it. To reconsider this candidate, record a new application instead.`;
+    if (to === 'Hired') return `Hired can only be reached from Offer. This application is in ${stage}.`;
+    const i = ACTIVE.indexOf(stage);
+    const opts = [];
+    if (i < ACTIVE.length - 1) opts.push(`forward to ${ACTIVE[i + 1]}`);
+    if (i > 0) opts.push(`back to ${ACTIVE[i - 1]}`);
+    return `Moves go one step at a time. From ${stage} the only stage moves are ${opts.join(' or ')} (plus Reject or Withdraw).`;
+  }
+
+  function initialState() {
+    return {
+      candidates: [{ id: 'jane', name: 'Jane Smith' }, { id: 'marcus', name: 'Marcus Lee' }],
+      jobs: [{ id: 'jr', title: 'Junior Developer' }, { id: 'da', title: 'Data Analyst' }],
+      applications: [
+        { id: 1, candidateId: 'jane', jobId: 'jr', stage: 'Applied' },
+        { id: 2, candidateId: 'marcus', jobId: 'da', stage: 'Applied' },
+      ],
+      history: [
+        { appId: 1, from: null, to: 'Applied', by: 'Sam Patel', at: 0, kind: 'created' },
+        { appId: 2, from: null, to: 'Applied', by: 'Sam Patel', at: 0, kind: 'created' },
+      ],
+      nextId: 3,
+      clock: 0, // minutes after 9:00 AM
+    };
+  }
+
+  const cand = (s, id) => s.candidates.find((c) => c.id === id);
+  const job = (s, id) => s.jobs.find((j) => j.id === id);
+  const activeAppFor = (s, c, j) =>
+    s.applications.find((a) => a.candidateId === c && a.jobId === j && !isTerminal(a.stage));
+
+  function apply(state, { candidateId, jobId, by }) {
+    const c = cand(state, candidateId), j = job(state, jobId);
+    const existing = activeAppFor(state, candidateId, jobId);
+    if (existing) {
+      return { state, ok: false, message: `Blocked: ${c.name} already has an active application for ${j.title} (#${existing.id}, currently in ${existing.stage}). A new one is only allowed once that one has ended (Hired, Rejected or Withdrawn).` };
+    }
+    const earlier = state.applications.filter((a) => a.candidateId === candidateId && a.jobId === jobId).length;
+    const s = structuredClone(state);
+    s.clock += 3;
+    const id = s.nextId++;
+    s.applications.push({ id, candidateId, jobId, stage: 'Applied' });
+    s.history.push({ appId: id, from: null, to: 'Applied', by, at: s.clock, kind: 'created' });
+    let message = `Recorded: ${c.name} applied for ${j.title} (application #${id}).`;
+    if (earlier) message += ` Their ${earlier} earlier application(s) for this job stay on record, unchanged.`;
+    return { state: s, ok: true, message };
+  }
+
+  function move(state, { appId, to, by }) {
+    const app = state.applications.find((a) => a.id === appId);
+    const c = cand(state, app.candidateId), j = job(state, app.jobId);
+    const legal = allowedMoves(app.stage).find((m) => m.to === to);
+    if (!legal) return { state, ok: false, message: `Blocked (${c.name}, ${j.title}): ${whyNot(app.stage, to)}` };
+    const s = structuredClone(state);
+    s.clock += 3;
+    s.applications.find((a) => a.id === appId).stage = to;
+    s.history.push({ appId, from: app.stage, to, by, at: s.clock, kind: legal.kind });
+    return { state: s, ok: true, message: `${c.name} · ${j.title}: ${app.stage} → ${to} (by ${by}).` };
+  }
+
+  return { ACTIVE, TERMINAL, ALL, isTerminal, allowedMoves, initialState, apply, move, cand, job };
+})();
+
+/* ===================== Page shell ===================== */
+let state = Hiring.initialState();
+let last = { ok: null, message: 'Ready. Use the buttons on an application, or pick a guided walkthrough below.', added: 0 };
+let walk = null; // { i: scenario index, step: next step index }
+
+const $ = (id) => document.getElementById(id);
+const staff = () => $('staff').value;
+const VERB = { Hired: 'Hire', Rejected: 'Reject', Withdrawn: 'Withdraw' };
+const fmt = (m) => { const h = 9 + Math.floor(m / 60), mm = String(m % 60).padStart(2, '0'); return `${h > 12 ? h - 12 : h}:${mm} ${h >= 12 ? 'PM' : 'AM'}`; };
+
+// Returns false only if the user cancelled a confirmation dialog.
+function dispatch(action) {
+  const before = state.history.length;
+  let r;
+  if (action.type === 'move') {
+    const app = state.applications.find((a) => a.id === action.appId);
+    const legal = Hiring.allowedMoves(app.stage).some((m) => m.to === action.to);
+    if (legal && Hiring.isTerminal(action.to)) {
+      const c = Hiring.cand(state, app.candidateId), j = Hiring.job(state, app.jobId);
+      if (!confirm(`${VERB[action.to]} ${c.name} for ${j.title}?\n\nThis can't be undone.`)) {
+        last = { ok: null, message: 'Cancelled at the "are you sure?" dialog. Nothing changed and no history row was added.', added: 0 };
+        render();
+        return false;
+      }
+    }
+    r = Hiring.move(state, { appId: action.appId, to: action.to, by: staff() });
+  } else {
+    r = Hiring.apply(state, { candidateId: action.candidateId, jobId: action.jobId, by: staff() });
+  }
+  state = r.state;
+  last = { ok: r.ok, message: r.message, added: state.history.length - before };
+  render();
+  return true;
+}
+
+function appCard(a) {
+  const c = Hiring.cand(state, a.candidateId), j = Hiring.job(state, a.jobId);
+  const term = Hiring.isTerminal(a.stage);
+  const idx = Hiring.ACTIVE.indexOf(a.stage);
+  const chips = Hiring.ACTIVE.map((s, i) =>
+    `<span class="chip ${s === a.stage ? 'current' : ''} ${!term && i < idx ? 'past' : ''}">${s}</span>`
+  ).join('<span class="arrow">›</span>');
+  const badge = term ? `<span class="final final-${a.stage.toLowerCase()}">${a.stage} · final</span>` : '';
+  const moves = Hiring.allowedMoves(a.stage).map((m) => {
+    const label = m.kind === 'forward' ? `Advance to ${m.to} →` : m.kind === 'back' ? `← Back to ${m.to}` : VERB[m.to];
+    const cls = m.kind === 'forward' ? 'primary' : m.kind === 'final' ? 'danger' : '';
+    return `<button class="${cls}" data-move="${a.id}" data-to="${m.to}">${label}</button>`;
+  }).join('');
+  const none = term ? `<span class="muted small">No buttons: ${a.stage} is final.</span>` : '';
+  const others = Hiring.ALL.filter((s) => s !== a.stage).map((s) => `<option>${s}</option>`).join('');
+  return `<div class="app ${term ? 'closed' : ''}">
+    <div class="app-head">
+      <div><strong>${c.name}</strong> <span class="muted">for</span> <strong>${j.title}</strong></div>
+      <div class="muted small">Application #${a.id} · ${term ? 'Closed' : 'Active'}</div>
+    </div>
+    <div class="pipeline">${chips}${badge}</div>
+    <div class="moves">${moves}${none}</div>
+    <div class="try small"><span class="muted">Try a move the page wouldn't offer:</span>
+      <select data-try-select="${a.id}">${others}</select>
+      <button data-try="${a.id}">Try it</button></div>
+  </div>`;
+}
+
+function render() {
+  $('apps').innerHTML = state.applications.map(appCard).join('');
+
+  const cls = last.ok === true ? 'ok' : last.ok === false ? 'bad' : '';
+  const label = last.ok === true ? 'Done' : last.ok === false ? 'Not allowed' : 'Info';
+  const added = last.ok === false ? 'Nothing changed. No history row added.'
+    : last.added ? `${last.added} history row added (highlighted).` : '';
+  $('msg').innerHTML = `<div class="msg ${cls}"><div class="label">${label}</div><div>${last.message}</div>
+    ${added ? `<div class="muted small" style="margin-top:4px">${added}</div>` : ''}</div>`;
+
+  const rows = [...state.history].reverse();
+  $('histCount').textContent = `(${rows.length} rows)`;
+  const KIND = { created: 'Application recorded', forward: 'Forward', back: 'Back', final: 'Final' };
+  $('history').innerHTML = `<table><thead><tr><th>Time</th><th>App</th><th>Move</th><th>By</th></tr></thead><tbody>${
+    rows.map((h, i) => {
+      const a = state.applications.find((x) => x.id === h.appId);
+      const who = Hiring.cand(state, a.candidateId).name.split(' ')[0];
+      const what = h.from ? `${h.from} → ${h.to}` : `→ ${h.to}`;
+      return `<tr class="${i < last.added && last.ok ? 'new' : ''}"><td>${fmt(h.at)}</td><td>#${h.appId} ${who}</td>
+        <td>${what}<div class="kind">${KIND[h.kind]}</div></td><td>${h.by.split(' ')[0]}</td></tr>`;
+    }).join('')}</tbody></table>`;
+
+  renderWalk();
+}
+
+/* ===================== Guided walkthroughs ===================== */
+const mv = (c, j, to) => ({ type: 'move', c, j, to });
+const ap = (c, j) => ({ type: 'apply', c, j });
+const adv = (who, c, j, to) => ({ label: `Advance ${who} to ${to}`, a: mv(c, j, to) });
+
+const SCENARIOS = [
+  { title: 'Happy path',
+    desc: 'Jane moves through every stage and is hired.',
+    watch: 'Each stage offers only the next step, one step back, Reject and Withdraw. Hire appears only at Offer. After Hired, every button disappears.',
+    steps: [adv('Jane', 'jane', 'jr', 'Screening'), adv('Jane', 'jane', 'jr', 'Interview'), adv('Jane', 'jane', 'jr', 'Final Review'),
+      adv('Jane', 'jane', 'jr', 'Offer'), { label: 'Hire Jane (press OK in the dialog)', a: mv('jane', 'jr', 'Hired') }] },
+  { title: 'Misclick, then undo',
+    desc: 'A recruiter means to stop at Interview but clicks one time too many.',
+    watch: 'Going back one step fixes the mistake, and the history keeps both the mistake and the fix, so anyone can see what happened.',
+    steps: [adv('Jane', 'jane', 'jr', 'Screening'), adv('Jane', 'jane', 'jr', 'Interview'),
+      { label: 'Oops: advance Jane to Final Review by accident', a: mv('jane', 'jr', 'Final Review') },
+      { label: 'Go back to Interview', a: mv('jane', 'jr', 'Interview') }] },
+  { title: 'Clicking back and forth',
+    desc: 'Someone clicks Advance and Back over and over.',
+    watch: 'Every click is recorded (Decision 7a). At the end Jane has 6 history rows: 1 for the application plus 1 per click. Does that feel acceptable?',
+    steps: [adv('Jane', 'jane', 'jr', 'Screening'), { label: 'Back to Applied', a: mv('jane', 'jr', 'Applied') },
+      adv('Jane', 'jane', 'jr', 'Screening'), { label: 'Back to Applied', a: mv('jane', 'jr', 'Applied') },
+      adv('Jane', 'jane', 'jr', 'Screening')] },
+  { title: 'Moves that aren\'t allowed',
+    desc: 'The page only shows legal buttons, but the rules are also enforced underneath (in the real app, inside move_to()). Each "Try" step attempts something the rules forbid.',
+    watch: 'Each "Try" shows a red message, and the history doesn\'t change.',
+    steps: [{ label: 'Try: skip Jane from Applied straight to Offer', a: mv('jane', 'jr', 'Offer') },
+      { label: 'Try: hire Jane while she is still in Applied', a: mv('jane', 'jr', 'Hired') },
+      adv('Jane', 'jane', 'jr', 'Screening'),
+      { label: 'Reject Jane (press OK)', a: mv('jane', 'jr', 'Rejected') },
+      { label: 'Try: move Jane from Rejected back to Screening', a: mv('jane', 'jr', 'Screening') },
+      { label: 'Try: hire Jane from Rejected', a: mv('jane', 'jr', 'Hired') }] },
+  { title: 'Final moves ask first',
+    desc: 'Hire, Reject and Withdraw can\'t be undone, so they ask for confirmation first. Ordinary forward and back moves never ask.',
+    watch: 'Pressing Cancel leaves everything untouched, with no history row.',
+    steps: [adv('Marcus', 'marcus', 'da', 'Screening'),
+      { label: 'Reject Marcus, then press CANCEL in the dialog', a: mv('marcus', 'da', 'Rejected'), expectCancel: true },
+      { label: 'Reject Marcus, and this time press OK', a: mv('marcus', 'da', 'Rejected') }] },
+  { title: 'Applying again',
+    desc: 'One active application per candidate per job. Jane can apply to different jobs at the same time, but a second Junior Developer application is blocked until the first one ends.',
+    watch: 'After she withdraws, the old application stays on record (Closed) and the new one gets a new number.',
+    steps: [{ label: 'Try: record a second Junior Developer application for Jane', a: ap('jane', 'jr') },
+      { label: 'Record Jane applying for Data Analyst (different job)', a: ap('jane', 'da') },
+      { label: 'Withdraw Jane from Junior Developer (press OK)', a: mv('jane', 'jr', 'Withdrawn') },
+      { label: 'Record Jane applying for Junior Developer again', a: ap('jane', 'jr') }] },
+  { title: 'Open question: after Hired',
+    desc: 'The rule we chose allows a new application once the old one is in any final stage, and Hired is a final stage. So a hired candidate can be entered as applying for the same job again.',
+    watch: 'The last step is allowed. Is that what you want, or should Hired block it?',
+    steps: [adv('Marcus', 'marcus', 'da', 'Screening'), adv('Marcus', 'marcus', 'da', 'Interview'), adv('Marcus', 'marcus', 'da', 'Final Review'),
+      adv('Marcus', 'marcus', 'da', 'Offer'), { label: 'Hire Marcus (press OK)', a: mv('marcus', 'da', 'Hired') },
+      { label: 'Record Marcus applying for Data Analyst again', a: ap('marcus', 'da') }] },
+];
+
+function startScenario(i) {
+  state = Hiring.initialState();
+  walk = { i, step: 0 };
+  last = { ok: null, message: `Scenario "${SCENARIOS[i].title}" started from the starting point.`, added: 0 };
+  render();
+}
+
+function runStep() {
+  const sc = SCENARIOS[walk.i], st = sc.steps[walk.step];
+  let action;
+  if (st.a.type === 'apply') {
+    action = { type: 'apply', candidateId: st.a.c, jobId: st.a.j };
+  } else {
+    const apps = state.applications.filter((a) => a.candidateId === st.a.c && a.jobId === st.a.j);
+    action = { type: 'move', appId: apps[apps.length - 1].id, to: st.a.to };
+  }
+  const done = dispatch(action);
+  if (done || st.expectCancel) { walk.step++; render(); }
+}
+
+function renderWalk() {
+  $('tabs').innerHTML = SCENARIOS.map((s, i) =>
+    `<button data-tab="${i}" class="${walk && walk.i === i ? 'active' : ''}">${s.title}</button>`).join('');
+  if (!walk) { $('walk').innerHTML = '<p class="muted">Pick a scenario above.</p>'; return; }
+  const sc = SCENARIOS[walk.i];
+  const finished = walk.step >= sc.steps.length;
+  $('walk').innerHTML = `<p style="margin:0">${sc.desc}</p>
+    <div class="watch small"><strong>Watch for:</strong> ${sc.watch}</div>
+    <ol class="steps">${sc.steps.map((st, k) => `<li><span class="num">${k < walk.step ? '✓' : k + 1}</span>
+      <button data-step class="${k === walk.step ? 'primary' : ''}" ${k === walk.step ? '' : 'disabled'}>${st.label}</button></li>`).join('')}</ol>
+    ${finished ? `<p><strong>Scenario complete.</strong> <button data-tab="${walk.i}">Run it again</button></p>` : ''}`;
+}
+
+/* ===================== Wiring ===================== */
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button');
+  if (!t) return;
+  if (t.dataset.move) dispatch({ type: 'move', appId: +t.dataset.move, to: t.dataset.to });
+  else if (t.dataset.try) {
+    const to = document.querySelector(`[data-try-select="${t.dataset.try}"]`).value;
+    dispatch({ type: 'move', appId: +t.dataset.try, to });
+  }
+  else if (t.dataset.tab !== undefined) startScenario(+t.dataset.tab);
+  else if (t.hasAttribute('data-step')) runStep();
+  else if (t.id === 'applyBtn') dispatch({ type: 'apply', candidateId: $('newCand').value, jobId: $('newJob').value });
+  else if (t.id === 'reset') { state = Hiring.initialState(); walk = null; last = { ok: null, message: 'Reset to the starting point.', added: 0 }; render(); }
+});
+
+$('newCand').innerHTML = state.candidates.map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
+$('newJob').innerHTML = state.jobs.map((j) => `<option value="${j.id}">${j.title}</option>`).join('');
+render();
+</script>
+</body>
+</html>
