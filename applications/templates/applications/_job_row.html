@@ -1,0 +1,29 @@
+<tr id="application-{{ application.pk }}">
+  <td><a href="{% url 'candidates:detail' application.candidate.pk %}" class="link link-hover font-medium">{{ application.candidate.full_name }}</a></td>
+  <td>{{ application.candidate.get_source_display }}</td>
+  <td><span class="badge badge-outline">{{ application.get_stage_display }}</span></td>
+  <td>{{ application.applied_at|date:"M j, Y" }}</td>
+  <td>
+    {# Fixed back/forward slots, so buttons keep their position when one side is empty. #}
+    {% with moves=application.moves %}
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        {% for move in moves %}{% if move.direction == "back" %}
+        <button type="button" class="btn btn-xs w-full"
+                hx-post="{% url 'applications:move' application.pk %}"
+                hx-vals='{"stage": "{{ move.stage }}", "context": "job"}'
+                hx-target="closest tr" hx-swap="outerHTML">← {{ move.label }}</button>
+        {% endif %}{% endfor %}
+      </div>
+      <div>
+        {% for move in moves %}{% if move.direction == "forward" %}
+        <button type="button" class="btn btn-xs w-full"
+                hx-post="{% url 'applications:move' application.pk %}"
+                hx-vals='{"stage": "{{ move.stage }}", "context": "job"}'
+                hx-target="closest tr" hx-swap="outerHTML">{{ move.label }} →</button>
+        {% endif %}{% endfor %}
+      </div>
+    </div>
+    {% endwith %}
+  </td>
+</tr>

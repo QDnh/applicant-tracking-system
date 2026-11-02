@@ -28,6 +28,36 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-11-02 — Implemented Phase 6: Forward and back stage moves (TDD for the transition map, per-move history rows, and the job-row move endpoint)
+
+### Prompts
+1. `/implement @prd/applicant-tracking-system.md @plans/applicant-tracking-system.md implement Phase 6.`
+2. (Answer to "Run /tdd?") Yes, run /tdd.
+3. yes, go ahead with those three
+4. yes, make it pass
+5. yes
+6. yes, make it pass
+7. yes
+8. yes, make it pass
+9. yes, go ahead
+10. How do I check 5 using shell?
+11. Everything work. However, I noticed that the applications' row items move when pressing the moves buttons.
+12. The buttons feel to wide. However, the other buttons are eventually going to go there, so maybe I should just bring it up then.
+13. (Answer to "Append PROMPTS.md?") Yes, append it.
+
+### Summary
+- **Outcome:**
+  - Added `Application.TRANSITIONS`, the single transition map (active stages only for now: one step back, then one step forward, in button order), and `Application.move_to(to_stage, user)`. In one transaction it re-reads the current stage under `select_for_update`, refuses moves not in the map with a `ValidationError`, saves the stage and appends one `StageChange` row (from, to, user, `changed_at` = `updated_at`). An `Application.moves` property gives templates the legal moves tagged back/forward.
+  - POST-only endpoint `/applications/<pk>/move/` (`MoveStageView`): takes `stage` and `context=job`, returns the `applications/_job_row.html` partial (one `<tr id="application-<pk>">`) swapped by HTMX `outerHTML`; illegal moves, unknown context or a missing stage return 400 and change nothing. The job page table uses the partial with a Moves column ("← Stage" left, "Stage →" right, no confirmation) and shows a hidden error alert when a move is refused.
+  - Three TDD cycles, all with a proper RED on assertions: legal/illegal transitions (15 cases), one history row per move including rapid back-and-forth and none on refusal, and the job-context endpoint returning only the updated row with back-before-forward buttons and a 400 on an illegal move. Normal tests cover button sets per stage, stable row order, moves on a closed job for a deactivated candidate, and 405/400/login on the endpoint.
+  - Results: 104 tests pass; `ruff check` and `ruff format --check` pass. The user checked the phase in the browser.
+- **Deviations:**
+  - The user asked how to check stage history (manual step 5) from the shell; Claude gave a shell snippet and pointed out the existing admin inline. Claude's verification steps had been unsure whether StageChange was in the admin instead of checking first.
+  - After browser testing the user reported row contents shifting when moving; fixed with a fixed-layout table and fixed back/forward button slots. The user found the buttons too wide and chose to revisit the Moves column width in Phase 7, when Reject/Withdraw/Hire join that cell.
+- **Sideways:**
+  - The column-shift fix had two template slips: a stray no-op `{% for %}` line was left in, and removing it also deleted the Back slot's opening `<div>`. Claude caught the missing `<div>` by rereading the template after tests had passed (tests don't check HTML structure) and fixed it.
+  - One malformed `Edit` call on PROMPTS.md (line-number prefix pasted into the match string) failed harmlessly before this entry was added.
+
 ## 2026-11-02 — Implemented Phase 5: Recording applications (TDD for reapply rules, picker eligibility, and record-from-job with first history row)
 
 ### Prompts

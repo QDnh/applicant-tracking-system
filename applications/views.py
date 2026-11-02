@@ -1,6 +1,9 @@
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.shortcuts import get_object_or_404, redirect
+from django.http import HttpResponseBadRequest
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views import View
+from django.views.generic.detail import SingleObjectMixin
 from django.views.generic.edit import FormView
 
 from candidates.models import Candidate
@@ -64,3 +67,25 @@ class RecordFromCandidateView(RecordApplicationView):
 
     def form_valid(self, form):
         return self.record(self.candidate, form.cleaned_data["job_opening"])
+
+
+class MoveStageView(SingleObjectMixin, View):
+    """POST-only stage-move endpoint for HTMX; returns a partial chosen by `context`.
+
+    Refused moves return 400, which HTMX doesn't swap, so the page is left unchanged.
+    Defining no get() makes GET return 405.
+    """
+
+    queryset = Application.objects.select_related("candidate", "job_opening")
+    partials = {"job": "applications/_job_row.html"}
+
+    def post(self, request, *args, **kwargs):
+        application = self.get_object()
+        template = self.partials.get(request.POST.get("context"))
+        if template is None:
+            return HttpResponseBadRequest("Unknown page context.")
+        try:
+            application.move_to(request.POST.get("stage"), request.user)
+        except ValidationError as error:
+            return HttpResponseBadRequest(" ".join(error.messages))
+        return render(request, template, {"application": application})

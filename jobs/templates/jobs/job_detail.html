@@ -69,18 +69,21 @@
     </div>
 
     {% if applications %}
-    <table class="table">
+    {# Filled in when the move endpoint refuses a move (HTMX doesn't swap error responses). #}
+    <div id="move-error" role="alert" class="alert alert-error hidden"></div>
+    {# Fixed layout: column widths don't depend on content, so moves don't shift columns. #}
+    <table class="table table-fixed"
+           hx-on::before-request="document.getElementById('move-error').classList.add('hidden')"
+           hx-on::response-error="const box = document.getElementById('move-error'); box.textContent = event.detail.xhr.responseText || 'That move could not be made.'; box.classList.remove('hidden')">
+      <colgroup>
+        <col><col class="w-40"><col class="w-36"><col class="w-32"><col class="w-80">
+      </colgroup>
       <thead>
-        <tr><th>Candidate</th><th>Source</th><th>Stage</th><th>Applied</th></tr>
+        <tr><th>Candidate</th><th>Source</th><th>Stage</th><th>Applied</th><th>Moves</th></tr>
       </thead>
       <tbody>
         {% for application in applications %}
-        <tr>
-          <td><a href="{% url 'candidates:detail' application.candidate.pk %}" class="link link-hover font-medium">{{ application.candidate.full_name }}</a></td>
-          <td>{{ application.candidate.get_source_display }}</td>
-          <td><span class="badge badge-outline">{{ application.get_stage_display }}</span></td>
-          <td>{{ application.applied_at|date:"M j, Y" }}</td>
-        </tr>
+        {% include "applications/_job_row.html" %}
         {% endfor %}
       </tbody>
     </table>

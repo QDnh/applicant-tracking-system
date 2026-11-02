@@ -11,4 +11,5 @@ urlpatterns = [
         views.RecordFromCandidateView.as_view(),
         name="record_from_candidate",
     ),
+    path("<int:pk>/move/", views.MoveStageView.as_view(), name="move"),
 ]

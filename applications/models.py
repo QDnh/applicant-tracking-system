@@ -37,6 +37,17 @@ class Application(models.Model):
     # (active stages and Hired) blocks it.
     NON_BLOCKING_STAGES = [Stage.REJECTED, Stage.WITHDRAWN]
 
+    # The single source of truth for legal stage moves. Each stage lists its targets in
+    # button order: the back move first (left), then the forward move (right).
+    # A stage missing from the map has no moves.
+    TRANSITIONS = {
+        Stage.APPLIED: [Stage.SCREENING],
+        Stage.SCREENING: [Stage.APPLIED, Stage.INTERVIEW],
+        Stage.INTERVIEW: [Stage.SCREENING, Stage.FINAL_REVIEW],
+        Stage.FINAL_REVIEW: [Stage.INTERVIEW, Stage.OFFER],
+        Stage.OFFER: [Stage.FINAL_REVIEW],
+    }
+
     class Meta:
         ordering = ["-applied_at", "-pk"]
         constraints = [
@@ -56,6 +67,19 @@ class Application(models.Model):
     @property
     def is_active(self):
         return self.stage in self.ACTIVE_STAGES
+
+    @property
+    def moves(self):
+        """Legal moves from the current stage, in button order, for templates to render."""
+        position = self.ACTIVE_STAGES.index(self.stage) if self.is_active else None
+        return [
+            {
+                "stage": target,
+                "label": self.Stage(target).label,
+                "direction": "back" if self.ACTIVE_STAGES.index(target) < position else "forward",
+            }
+            for target in self.TRANSITIONS.get(self.stage, [])
+        ]
 
     @classmethod
     def blocking(cls):
@@ -103,6 +127,34 @@ class Application(models.Model):
         except IntegrityError as error:
             raise duplicate from error
         return application
+
+    def move_to(self, to_stage, user):
+        """The single entry point for every stage change.
+
+        Validates against TRANSITIONS, then updates the stage and appends a StageChange
+        row in one transaction. The stage is re-read under a row lock so the check uses
+        the current stage, not whatever this instance was loaded with.
+        """
+        with transaction.atomic():
+            from_stage = (
+                Application.objects.select_for_update()
+                .values_list("stage", flat=True)
+                .get(pk=self.pk)
+            )
+            if to_stage not in self.TRANSITIONS.get(from_stage, []):
+                labels = dict(self.Stage.choices)
+                raise ValidationError(
+                    f"Can't move from {labels[from_stage]} to {labels.get(to_stage, to_stage)}."
+                )
+            self.stage = to_stage
+            self.save(update_fields=["stage", "updated_at"])
+            StageChange.objects.create(
+                application=self,
+                from_stage=from_stage,
+                to_stage=to_stage,
+                changed_by=user,
+                changed_at=self.updated_at,
+            )
 
 
 class StageChange(models.Model):
