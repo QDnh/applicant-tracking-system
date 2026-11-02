@@ -77,15 +77,28 @@ class MoveStageView(SingleObjectMixin, View):
     """
 
     queryset = Application.objects.select_related("candidate", "job_opening")
-    partials = {"job": "applications/_job_row.html"}
+
+    def render_job_row(self, application):
+        """Job page: just the moved application's table row."""
+        return render(self.request, "applications/_job_row.html", {"application": application})
+
+    def render_candidate_section(self, application):
+        """Candidate page: the whole applications and history section, so cards changed
+        by a hire's auto-withdrawals are refreshed along with the moved one."""
+        return render(
+            self.request,
+            "applications/_candidate_applications.html",
+            Application.candidate_page_sections(application.candidate),
+        )
 
     def post(self, request, *args, **kwargs):
         application = self.get_object()
-        template = self.partials.get(request.POST.get("context"))
-        if template is None:
+        renderers = {"job": self.render_job_row, "candidate": self.render_candidate_section}
+        render_partial = renderers.get(request.POST.get("context"))
+        if render_partial is None:
             return HttpResponseBadRequest("Unknown page context.")
         try:
             application.move_to(request.POST.get("stage"), request.user)
         except ValidationError as error:
             return HttpResponseBadRequest(" ".join(error.messages))
-        return render(request, template, {"application": application})
+        return render_partial(application)

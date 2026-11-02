@@ -1,0 +1,34 @@
+{# Move buttons built from the transition map, shared by the job and candidate pages. #}
+{# Expects `application`, `page` (the move endpoint's `context` value) and `target` (hx-target). #}
+{# Fixed back/forward slots, so buttons keep their position when one side is empty. #}
+{# Final moves (Reject, Mark as withdrawn) follow on the next line. #}
+{% with moves=application.moves %}
+<div class="grid grid-cols-2 gap-2">
+  <div>
+    {% for move in moves %}{% if move.direction == "back" %}
+    <button type="button" class="btn btn-xs w-full"
+            hx-post="{% url 'applications:move' application.pk %}"
+            hx-vals='{"stage": "{{ move.stage }}", "context": "{{ page }}"}'
+            hx-target="{{ target }}" hx-swap="outerHTML">← {{ move.label }}</button>
+    {% endif %}{% endfor %}
+  </div>
+  <div>
+    {% for move in moves %}{% if move.direction == "forward" %}
+    <button type="button" class="btn btn-xs w-full{% if move.final %} btn-success{% endif %}"
+            hx-post="{% url 'applications:move' application.pk %}"
+            hx-vals='{"stage": "{{ move.stage }}", "context": "{{ page }}"}'
+            {% if move.confirm %}hx-confirm="{{ move.confirm }}"{% endif %}
+            hx-target="{{ target }}" hx-swap="outerHTML">{% if move.final %}{{ move.label }}{% else %}{{ move.label }} →{% endif %}</button>
+    {% endif %}{% endfor %}
+  </div>
+  {% for move in moves %}{% if move.direction == "end" %}
+  <div>
+    <button type="button" class="btn btn-xs btn-outline w-full{% if move.stage == 'rejected' %} btn-error{% endif %}"
+            hx-post="{% url 'applications:move' application.pk %}"
+            hx-vals='{"stage": "{{ move.stage }}", "context": "{{ page }}"}'
+            hx-confirm="{{ move.confirm }}"
+            hx-target="{{ target }}" hx-swap="outerHTML">{{ move.label }}</button>
+  </div>
+  {% endif %}{% endfor %}
+</div>
+{% endwith %}

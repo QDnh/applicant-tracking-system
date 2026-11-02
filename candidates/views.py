@@ -7,6 +7,7 @@ from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
 from applications.forms import RecordApplicationFromCandidateForm
+from applications.models import Application
 
 from .forms import CandidateForm
 from .models import Candidate
@@ -42,7 +43,7 @@ class CandidateDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(
-            applications=self.object.applications.select_related("job_opening"),
+            **Application.candidate_page_sections(self.object),
             record_form=RecordApplicationFromCandidateForm(candidate=self.object),
             **kwargs,
         )

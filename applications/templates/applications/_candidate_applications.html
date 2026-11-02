@@ -1,0 +1,67 @@
+{# The candidate page's applications and history section. A move from this page swaps #}
+{# the whole section, so cards changed by a hire's auto-withdrawals are always current. #}
+<div id="candidate-applications" class="space-y-4">
+  <h2 class="font-semibold text-lg">Active applications ({{ active_applications|length }})</h2>
+  {% for application in active_applications %}
+  <div id="application-{{ application.pk }}" class="card bg-base-100 shadow-sm">
+    <div class="card-body p-5 gap-3">
+      <div class="flex flex-wrap justify-between gap-2">
+        <div>
+          <a href="{% url 'jobs:detail' application.job_opening.pk %}" class="link link-hover font-semibold">{{ application.job_opening.title }}</a>
+          <span class="badge badge-sm {% if application.job_opening.is_open %}badge-success{% else %}badge-neutral{% endif %} ml-1">{{ application.job_opening.get_status_display }}</span>
+          <div class="text-xs opacity-60">Applied {{ application.applied_at|date:"M j, Y" }}</div>
+        </div>
+        <span class="badge badge-outline">{{ application.get_stage_display }}</span>
+      </div>
+      <ul class="steps steps-horizontal w-full text-xs">
+        {% for step in application.progress %}<li class="step{% if step.reached %} step-primary{% endif %}">{{ step.label }}</li>{% endfor %}
+      </ul>
+      <div class="max-w-md">
+        {% include "applications/_move_buttons.html" with page="candidate" target="#candidate-applications" %}
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <p class="text-sm opacity-70">No active applications.</p>
+  {% endfor %}
+
+  <h2 class="font-semibold text-lg pt-2">Past applications ({{ past_applications|length }})</h2>
+  {% for application in past_applications %}
+  <div id="application-{{ application.pk }}" class="card bg-base-100 shadow-sm opacity-60">
+    <div class="card-body p-5">
+      <div class="flex flex-wrap justify-between gap-2">
+        <div>
+          <a href="{% url 'jobs:detail' application.job_opening.pk %}" class="link link-hover font-semibold">{{ application.job_opening.title }}</a>
+          <div class="text-xs opacity-60">Applied {{ application.applied_at|date:"M j, Y" }}</div>
+        </div>
+        <div class="text-right">
+          <span class="badge {% if application.stage == 'hired' %}badge-success{% else %}badge-outline{% endif %}">{{ application.get_stage_display }}</span>
+          <div class="text-xs mt-1">{{ application.get_stage_display }} {{ application.ended_at|date:"M j, Y" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <p class="text-sm opacity-70">No past applications.</p>
+  {% endfor %}
+
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body p-5">
+      <h2 class="font-semibold">Recent stage history</h2>
+      {% if recent_history %}
+      <ul class="text-sm divide-y divide-base-200">
+        {% for change in recent_history %}
+        <li class="py-1">
+          <span class="opacity-60 inline-block w-36">{{ change.changed_at|date:"M j, Y g:i A" }}</span>
+          {{ change.application.job_opening.title }}:
+          {% if change.from_stage %}{{ change.get_from_stage_display }} → {% else %}recorded as {% endif %}<b>{{ change.get_to_stage_display }}</b>
+          <span class="opacity-60">by {{ change.changed_by.get_username }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-sm opacity-70">No stage history yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>

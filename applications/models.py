@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
+from django.db.models import Case, Max, When
 
 from candidates.models import Candidate
 from jobs.models import JobOpening
@@ -132,6 +133,42 @@ class Application(models.Model):
             .exclude(pk=self.pk)
             .select_related("job_opening")
         )
+
+    @property
+    def progress(self):
+        """The active stages in order, each flagged if this application has reached it."""
+        position = self.ACTIVE_STAGES.index(self.stage) if self.is_active else -1
+        return [
+            {"label": stage.label, "reached": index <= position}
+            for index, stage in enumerate(self.ACTIVE_STAGES)
+        ]
+
+    @classmethod
+    def candidate_page_sections(cls, candidate, history_limit=10):
+        """Context for the candidate page's applications and history section.
+
+        Active applications keep the default order (applied date newest first), so a
+        stage move never reorders them. Past applications are ordered by ending date
+        (their last stage change), newest first; a hire and the withdrawals it caused
+        share one timestamp, so Hired breaks the tie and sits above them.
+        """
+        applications = cls.objects.filter(candidate=candidate).select_related("job_opening")
+        past = (
+            applications.exclude(stage__in=cls.ACTIVE_STAGES)
+            .annotate(
+                ended_at=Max("stage_changes__changed_at"),
+                hired_first=Case(When(stage=cls.Stage.HIRED, then=0), default=1),
+            )
+            .order_by("-ended_at", "hired_first", "-pk")
+        )
+        return {
+            "candidate": candidate,
+            "active_applications": applications.filter(stage__in=cls.ACTIVE_STAGES),
+            "past_applications": past,
+            "recent_history": StageChange.objects.filter(
+                application__candidate=candidate
+            ).select_related("application__job_opening", "changed_by")[:history_limit],
+        }
 
     @classmethod
     def blocking(cls):

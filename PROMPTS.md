@@ -28,6 +28,29 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-11-02 — Implemented Phase 9: Candidate page working screen (TDD for past-application ordering and the candidate-context move endpoint)
+
+### Prompts
+1. `/implement @prd/applicant-tracking-system.md @plans/applicant-tracking-system.md implement Phase 9.`
+2. (Answer to "Run /tdd?") Yes, but only for tests that are truly needed.
+3. Blitz through these. Check it goes red, make it go green, and give the verdict on if it implements. Pause after each of the two.
+4. go on to cycle 2
+5. Good
+6. (Answers to "Append PROMPTS.md?" and "Commit and push?") Yes, append; Yes, commit and push.
+
+### Summary
+- **Outcome:**
+  - New `Application.candidate_page_sections()` builds the candidate page's context. Active applications keep the default order (applied date newest first), so moves never reorder them. Past applications are ordered by ending date (their latest StageChange), newest first, with Hired breaking ties so a hire sits above the withdrawals it caused. Recent stage history shows the latest 10 rows. A new `progress` property drives a DaisyUI steps bar across the five active stages.
+  - New `_candidate_applications.html` partial: active cards (job, job status, applied date, progress bar, move buttons), dimmed past cards with ending date, and the recent history list. The candidate page includes it, shows a status badge, and has an error alert outside the swapped region for refused moves.
+  - `MoveStageView` now has a render method per page context. `context=candidate` returns the whole section, so a hire's auto-withdrawn cards move into Past immediately.
+  - The move buttons were extracted from `_job_row.html` into a shared `_move_buttons.html`, so both pages build their buttons, with the same confirmations, from the transition map. The job page is unchanged in behavior.
+  - Two TDD cycles in the new `tests/test_candidate_page.py`: past ordering (hire above same-timestamp withdrawals, then older endings) and the hire-from-candidate-page endpoint returning the section with withdrawals in Past. Per the user, no further tests were added. Results: 158 tests pass; `ruff check` and `ruff format --check` pass.
+- **Deviations:**
+  - The user limited TDD to tests that are truly needed, so Claude proposed two behaviors instead of three. As in Phase 8, the user skipped the approval stop before each GREEN step and asked for red, green and a verdict in one go, pausing after each cycle.
+- **Sideways:**
+  - The first full-suite run after extracting the shared buttons failed 29 tests with `TypeError: ContextDict.__init__() got multiple values for argument 'context'`, because `context` is reserved in `{% include ... with %}`. Claude renamed the variable to `page`, and all tests passed again.
+  - `ruff format --check` flagged the `recent_history` queryset wrapping in `applications/models.py`; fixed with `ruff format`.
+
 ## 2026-11-02 — Implemented Phase 8: Hire cascade and job hire tracking (TDD for the cascade, its isolation, and rollback)
 
 ### Prompts
