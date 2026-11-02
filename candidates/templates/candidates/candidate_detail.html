@@ -13,11 +13,30 @@
       <div>
         <h1 class="card-title text-2xl">
           {{ candidate.full_name }}
-          <span class="badge {% if candidate.status == 'active' %}badge-success{% else %}badge-neutral{% endif %}">{{ candidate.get_status_display }}</span>
+          {% if candidate.status == "active" %}
+          <span class="badge badge-success">Active</span>
+          {% elif candidate.status == "deactivated" %}
+          <span class="badge badge-neutral">Inactive</span>
+          {% else %}
+          <span class="badge badge-ghost">Archived</span>
+          {% endif %}
         </h1>
         <p class="opacity-70">{{ candidate.email }}</p>
       </div>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
+        {# Reversible, so no confirmation. The server refuses Archive while applications are active. #}
+        <form method="post" action="{% url 'candidates:status' candidate.pk %}" class="join">
+          {% csrf_token %}
+          {% if candidate.status != "active" %}
+          <button type="submit" name="status" value="active" class="btn btn-sm join-item">Restore to active</button>
+          {% endif %}
+          {% if candidate.status != "deactivated" %}
+          <button type="submit" name="status" value="deactivated" class="btn btn-sm join-item">Deactivate</button>
+          {% endif %}
+          {% if candidate.status != "archived" %}
+          <button type="submit" name="status" value="archived" class="btn btn-sm join-item">Archive</button>
+          {% endif %}
+        </form>
         <a href="{% url 'candidates:update' candidate.pk %}" class="btn btn-sm btn-ghost">Edit</a>
         <a href="{% url 'candidates:delete' candidate.pk %}" class="btn btn-sm btn-ghost text-error">Delete</a>
       </div>

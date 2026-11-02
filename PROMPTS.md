@@ -28,6 +28,33 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-11-02 — Implemented Phase 10: Candidate lifecycle (TDD for the archive block, free status changes, and the Archived tab with search)
+
+### Prompts
+1. `/implement @prd/applicant-tracking-system.md @plans/applicant-tracking-system.md implement Phase 10.`
+2. (Answer to "Run /tdd?") Yes, where necessary.
+3. Blitz through these. Check it goes red, make it go green, and determine the verdict on if it implements. Pause at the end to give me the results.
+4. Move it
+5. So, I was expecting a lot more HTMX usage in this, so reloading pages was kept to a minimum. I guess I didn't specify that well before starting implementation. How difficult would it be to switch several things to HTMX?
+6. Just finish Phase 10.
+7. (Answers to "Append PROMPTS.md?" and "Commit and push?") Yes, append; Yes, commit with the title "Implement Phase 10".
+
+### Summary
+- **Outcome:**
+  - New POST-only `CandidateStatusView` at `/candidates/<pk>/status/` calls a new `Candidate.change_status()`. Any status can change to any other with no confirmation. Entering Archived is refused while the candidate has active applications, with a message giving the count and telling the user to reject or withdraw them first. Invalid status values are refused.
+  - The archive rule lives on the model in `_check_can_enter()`, used by both `change_status()` and `clean()`, so the Django admin can't bypass it either. `Application` is imported inside the method because `applications.models` already imports `candidates.models`.
+  - The candidate list has Active (Active + Deactivated, the default) and Archived tabs that combine with search through `?status=…&q=…`; unknown values fall back to the default tab. Deactivated candidates show an "Inactive" badge in the list and on their page. The candidate page has Restore to active / Deactivate / Archive buttons for the states the candidate isn't in.
+  - Picker exclusion, refusal of direct requests for non-Active candidates, and moves for Deactivated candidates were already built and tested in Phases 5 and 6, so nothing new was needed there.
+  - Three TDD cycles in the new `tests/test_candidate_lifecycle.py`, plus normal tests for the model-level rule (including `full_clean()`), invalid status values, and the badges and buttons. Results: 174 tests pass; `ruff check` and `ruff format --check` pass.
+- **Deviations:**
+  - The user answered the TDD question with "where necessary", then asked for all three cycles in one go (red, green, verdict) with a single pause at the end, instead of stopping for approval at each step.
+  - Claude's verdict on the archive block noted the rule lived only in the view, so the admin could bypass it, and offered moving it to the model. The user said "Move it".
+  - After the browser verification steps, the user said they had expected much more HTMX, keeping page reloads to a minimum, and admitted they hadn't specified it before implementation. Claude estimated the effort per page and recommended finishing Phase 10 as-is and adding a separate "HTMX pass" phase to the plan. The user chose to just finish Phase 10; no HTMX phase has been agreed yet.
+- **Sideways:**
+  - The first RED run exposed two test mistakes, both fixed mechanically before any implementation: expected sets missing "Mark Deactivated", and a tuple unpack that failed with `ValueError` instead of an assertion.
+  - Ruff's DJ012 rule flagged `get_absolute_url` coming after custom model methods; it was moved up.
+  - The first full-suite run exceeded the 2-minute foreground timeout and finished in the background (171 passed).
+
 ## 2026-11-02 — Implemented Phase 9: Candidate page working screen (TDD for past-application ordering and the candidate-context move endpoint)
 
 ### Prompts

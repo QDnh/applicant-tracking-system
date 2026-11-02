@@ -8,13 +8,19 @@
   <a href="{% url 'candidates:create' %}" class="btn btn-primary btn-sm">New candidate</a>
 </div>
 
-<div class="flex flex-wrap items-center justify-end gap-4 mb-4">
-  {# The status tabs arrive in Phase 10 and will be added to this form as a hidden "status" field. #}
+<div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+  <div role="tablist" class="tabs tabs-box">
+    {% for value, label in statuses %}
+    <a role="tab" href="?status={{ value }}{% if q %}&q={{ q|urlencode }}{% endif %}"
+       class="tab {% if status == value %}tab-active{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </div>
   <form method="get" class="join">
+    <input type="hidden" name="status" value="{{ status }}">
     <input type="search" name="q" value="{{ q }}" placeholder="Search by name or email"
            class="input input-bordered input-sm join-item">
     <button type="submit" class="btn btn-sm join-item">Search</button>
-    {% if q %}<a href="?" class="btn btn-sm btn-ghost join-item">Clear</a>{% endif %}
+    {% if q %}<a href="?status={{ status }}" class="btn btn-sm btn-ghost join-item">Clear</a>{% endif %}
   </form>
 </div>
 
@@ -28,7 +34,9 @@
       <tbody>
         {% for candidate in candidates %}
         <tr>
-          <td><a href="{% url 'candidates:detail' candidate.pk %}" class="link link-hover font-medium">{{ candidate.full_name }}</a></td>
+          <td><a href="{% url 'candidates:detail' candidate.pk %}" class="link link-hover font-medium">{{ candidate.full_name }}</a>
+            {% if candidate.status == "deactivated" %}<span class="badge badge-neutral badge-sm ml-1">Inactive</span>{% endif %}
+          </td>
           <td>{{ candidate.email }}</td>
           <td>{{ candidate.get_source_display }}</td>
           <td>{{ candidate.created_at|date:"M j, Y" }}</td>
@@ -38,7 +46,11 @@
     </table>
     {% else %}
     <p class="opacity-70">
-      {% if q %}No candidates match “{{ q }}”.{% else %}No candidates yet.{% endif %}
+      {% if status == "archived" %}
+        {% if q %}No archived candidates match “{{ q }}”.{% else %}No archived candidates.{% endif %}
+      {% else %}
+        {% if q %}No candidates match “{{ q }}”.{% else %}No candidates yet.{% endif %}
+      {% endif %}
     </p>
     {% endif %}
   </div>

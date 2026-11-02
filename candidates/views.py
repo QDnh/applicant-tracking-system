@@ -1,10 +1,13 @@
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
+from django.core.exceptions import ValidationError
 from django.db.models import Q, Value
 from django.db.models.functions import Concat
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
+from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
+from django.views.generic.detail import SingleObjectMixin
 
 from applications.forms import RecordApplicationFromCandidateForm
 from applications.models import Application
@@ -16,11 +19,16 @@ from .models import Candidate
 class CandidateListView(ListView):
     template_name = "candidates/candidate_list.html"
     context_object_name = "candidates"
+    STATUS_TABS = [("current", "Active"), ("archived", "Archived")]
 
     def get_queryset(self):
         self.q = self.request.GET.get("q", "").strip()
-        # Archived candidates are hidden; the Archived tab arrives in Phase 10.
-        candidates = Candidate.objects.exclude(status=Candidate.Status.ARCHIVED)
+        # Default tab: Active + Deactivated. Any other value falls back to it.
+        self.status = "archived" if self.request.GET.get("status") == "archived" else "current"
+        if self.status == "archived":
+            candidates = Candidate.objects.filter(status=Candidate.Status.ARCHIVED)
+        else:
+            candidates = Candidate.objects.exclude(status=Candidate.Status.ARCHIVED)
         if self.q:
             candidates = candidates.annotate(
                 full_name_search=Concat("first_name", Value(" "), "last_name")
@@ -33,7 +41,9 @@ class CandidateListView(ListView):
         return candidates
 
     def get_context_data(self, **kwargs):
-        return super().get_context_data(q=self.q, **kwargs)
+        return super().get_context_data(
+            q=self.q, status=self.status, statuses=self.STATUS_TABS, **kwargs
+        )
 
 
 class CandidateDetailView(DetailView):
@@ -90,3 +100,21 @@ class CandidateDeleteView(DeleteView):
         response = super().form_valid(form)
         messages.success(self.request, f"Candidate {self.object} deleted.")
         return response
+
+
+class CandidateStatusView(SingleObjectMixin, View):
+    """POST-only: defining no get() makes GET return 405."""
+
+    model = Candidate
+
+    def post(self, request, *args, **kwargs):
+        candidate = self.get_object()
+        try:
+            candidate.change_status(request.POST.get("status"))
+        except ValidationError as error:
+            messages.error(request, " ".join(error.messages))
+        else:
+            messages.success(
+                request, f"{candidate} is now {candidate.get_status_display().lower()}."
+            )
+        return redirect(candidate)

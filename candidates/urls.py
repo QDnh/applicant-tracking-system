@@ -10,4 +10,5 @@ urlpatterns = [
     path("<int:pk>/", views.CandidateDetailView.as_view(), name="detail"),
     path("<int:pk>/edit/", views.CandidateUpdateView.as_view(), name="update"),
     path("<int:pk>/delete/", views.CandidateDeleteView.as_view(), name="delete"),
+    path("<int:pk>/status/", views.CandidateStatusView.as_view(), name="status"),
 ]

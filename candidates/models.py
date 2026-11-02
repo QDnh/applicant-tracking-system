@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
 
@@ -39,6 +40,37 @@ class Candidate(models.Model):
 
     def get_absolute_url(self):
         return reverse("candidates:detail", args=[self.pk])
+
+    def clean(self):
+        # Runs for ModelForms (including the admin), so they can't archive past the rule.
+        super().clean()
+        self._check_can_enter(self.status)
+
+    def change_status(self, status):
+        """The single entry point for status changes from the app.
+
+        Any status can change to any other, except that entering Archived requires
+        zero active applications. Raises ValidationError when refused.
+        """
+        if status not in self.Status.values:
+            raise ValidationError("Choose a valid status.")
+        self._check_can_enter(status)
+        self.status = status
+        self.save(update_fields=["status", "updated_at"])
+
+    def _check_can_enter(self, status):
+        if status != self.Status.ARCHIVED or self.pk is None:
+            return
+        # Imported here: applications.models imports this module at load time.
+        from applications.models import Application
+
+        active_count = self.applications.filter(stage__in=Application.ACTIVE_STAGES).count()
+        if active_count:
+            noun, pronoun = ("application", "it") if active_count == 1 else ("applications", "them")
+            raise ValidationError(
+                f"Candidate {self} can't be archived while they have {active_count} "
+                f"active {noun}. Reject or withdraw {pronoun} first."
+            )
 
     @property
     def full_name(self):
