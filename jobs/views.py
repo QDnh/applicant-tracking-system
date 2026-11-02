@@ -45,6 +45,7 @@ class JobDetailView(DetailView):
         return super().get_context_data(
             applications=applications,
             active_count=applications.filter(stage__in=Application.ACTIVE_STAGES).count(),
+            hired_count=applications.filter(stage=Application.Stage.HIRED).count(),
             record_form=RecordApplicationFromJobForm(job=self.object),
             **kwargs,
         )

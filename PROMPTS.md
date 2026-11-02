@@ -28,6 +28,30 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-11-02 — Implemented Phase 8: Hire cascade and job hire tracking (TDD for the cascade, its isolation, and rollback)
+
+### Prompts
+1. `/implement @prd/applicant-tracking-system.md @plans/applicant-tracking-system.md implement Phase 8.`
+2. (Answer to "Run /tdd?") Yes, use /tdd.
+3. Tell you what. Just blitz through these. Check it goes red, make it go green, and give the verdict on if it implements. Stop after each of the three.
+4. Next
+5. Next
+6. Yes
+7. Continue
+8. (Answers to "Append PROMPTS.md?" and "Commit and push?") Yes, append; Yes, commit and push.
+
+### Summary
+- **Outcome:**
+  - `Application.move_to` now calls `_withdraw_other_active_applications()` when the target is Hired, inside the hire's transaction. Each of the candidate's other active applications gets a Withdrawn StageChange row by the hiring user, stamped with the hire's timestamp, and is updated to Withdrawn. A new `other_active_applications()` method feeds both the cascade and the Hire confirmation, so the dialog and the side effect can't disagree.
+  - The Hire `confirm_message` now names the count and job titles that will be withdrawn (unchanged when there are none). The job page shows "N hired" next to the active count and a new-hiring-round hint linking to the create-job form. Hiring never changes job status.
+  - Three TDD cycles in the new `tests/test_hire_cascade.py`: the cascade with shared timestamps, isolation (finished applications, other candidates, job status, a second hire), and rollback on a forced mid-cascade failure. Normal tests cover the confirmation with and without withdrawals and the job page hired count and hint.
+  - Results: 156 tests pass; `ruff check` and `ruff format --check` pass.
+- **Deviations:**
+  - The user skipped the approval stop before each GREEN step and asked Claude to go through each cycle in one go (red, green, verdict), stopping only after each behavior. Otherwise every recommendation was accepted with no follow-up questions.
+- **Sideways:**
+  - Behaviors 2 and 3 passed on their first run, because behavior 1 already filtered by candidate and active stage and ran inside the transaction. Following the prove-tests-can-fail rule, Claude broke the code each time and showed the tests fail on an assertion before restoring it. For behavior 2 there were three breaks: withdrawing by job, dropping the active-stage filter, and closing the job on hire. For behavior 3 the break moved the cascade outside the atomic block.
+  - `ruff check` flagged a `zip()` without `strict=` in the rollback test; fixed with `strict=True`. `ruff format` fixed blank lines and wrapping in the appended tests.
+
 ## 2026-11-02 — Implemented Phase 7: Final moves with confirmation (TDD for the final-move transition rules and the job-row buttons with confirmations)
 
 ### Prompts

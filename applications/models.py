@@ -112,7 +112,26 @@ class Application(models.Model):
             self.Stage.REJECTED: f"Reject {candidate}'s application for {job}?",
             self.Stage.WITHDRAWN: f"Mark {candidate}'s application for {job} as withdrawn?",
         }[to_stage]
+        if to_stage == self.Stage.HIRED:
+            titles = [
+                str(other.job_opening) for other in self.other_active_applications().order_by("pk")
+            ]
+            if titles:
+                count = len(titles)
+                noun = "application" if count == 1 else "applications"
+                action += (
+                    f" This will also mark {candidate}'s {count} other active {noun} as "
+                    f"withdrawn: {', '.join(titles)}."
+                )
         return f"{action} This can't be undone."
+
+    def other_active_applications(self):
+        """The candidate's other active applications: the ones a hire here withdraws."""
+        return (
+            Application.objects.filter(candidate_id=self.candidate_id, stage__in=self.ACTIVE_STAGES)
+            .exclude(pk=self.pk)
+            .select_related("job_opening")
+        )
 
     @classmethod
     def blocking(cls):
@@ -188,6 +207,26 @@ class Application(models.Model):
                 changed_by=user,
                 changed_at=self.updated_at,
             )
+            if to_stage == self.Stage.HIRED:
+                self._withdraw_other_active_applications(user, at=self.updated_at)
+
+    def _withdraw_other_active_applications(self, user, at):
+        """Hire side effect: the candidate's other active applications become Withdrawn.
+
+        Runs inside the hire's transaction and stamps every row with the hire's time,
+        so the hire and its withdrawals succeed or fail together and read as one event.
+        Other candidates' applications to the same job are untouched.
+        """
+        others = self.other_active_applications().select_for_update()
+        for other in others:
+            StageChange.objects.create(
+                application=other,
+                from_stage=other.stage,
+                to_stage=self.Stage.WITHDRAWN,
+                changed_by=user,
+                changed_at=at,
+            )
+        others.update(stage=self.Stage.WITHDRAWN, updated_at=at)
 
 
 class StageChange(models.Model):

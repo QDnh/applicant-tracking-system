@@ -18,6 +18,7 @@
         <p class="opacity-70">{{ job.department|default:"No department" }}</p>
         <p class="mt-1 text-sm">
           <span class="font-semibold">{{ active_count }}</span> active application{{ active_count|pluralize }}{% if not job.is_open and active_count %} still to finish{% endif %}
+          · <span class="font-semibold">{{ hired_count }}</span> hired
         </p>
       </div>
       <div class="flex gap-2">
@@ -47,6 +48,11 @@
       {% endif %}
       {% endwith %}
     </div>
+
+    {# Each opening is one hiring round; hiring never closes the job, so staff close it themselves. #}
+    <p class="text-sm opacity-70">
+      Starting a new hiring round for this role? <a href="{% url 'jobs:create' %}" class="link">Create a new job opening</a> so each opening stays one round.
+    </p>
   </div>
 </div>
 
