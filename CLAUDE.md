@@ -11,9 +11,21 @@ Internal, staff-only Django web app for tracking candidates, job openings, and a
 - Ruff for linting and formatting
 - pytest for tests
 
+## Commands
+
+- Dev server (rebuilds CSS on change): `uv run python manage.py tailwind runserver`
+- Build CSS only: `uv run python manage.py tailwind build` (output is gitignored; run after a fresh clone)
+- Tests: `uv run pytest`
+- Lint/format: `uv run ruff check` and `uv run ruff format --check`
+
+## Conventions
+
+- Tests live in the top-level `tests/` package (`test_*.py`), with shared fixtures in `tests/conftest.py`.
+- This project is a member of the parent `CIDM3312` uv workspace; the `.venv` and `uv.lock` live one folder up.
+
 ## Architecture decisions
 
-- Django built-in auth; every view requires login. No roles or per-object permissions.
+- Django built-in auth; every view requires login, enforced globally by `LoginRequiredMiddleware`. Don't add per-view login mixins or decorators; a view that must be public needs `@login_not_required`. No roles or per-object permissions.
 - One transition map in code is the single source of truth for legal stage moves. Templates build their stage buttons from that map instead of encoding their own rules.
 - Every stage change goes through one model-level move method, which validates against the map, records history, and runs its side effects in a single transaction. Views never set the stage directly.
 - Business rules are enforced on the server (form/service layer), with database constraints as the final safeguard. Hiding options in the UI is never the only check.

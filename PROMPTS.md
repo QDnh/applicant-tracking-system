@@ -28,6 +28,34 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-11-02 — Implemented Phase 2: Skills (TDD for case-insensitive uniqueness on add/rename and confirmed delete)
+
+### Prompts
+1. `/implement @prd/applicant-tracking-system.md @plans/applicant-tracking-system.md implement Phase 2.`
+2. (Answer to "Run /tdd?") Yes, run /tdd.
+3. Yes.
+4. I think so.
+5. Yes, go ahead.
+6. Yes, make it pass.
+7. Yes.
+8. Yes, make it pass.
+9. Yes.
+10. Verified.
+11. (Answer to "Append PROMPTS.md?") Yes, append it. (Answer to "Commit and push?") Yes, commit and push.
+
+### Summary
+- **Outcome:**
+  - Added the `Skill` model (alphabetical ignoring case) with a database `UniqueConstraint(Lower("name"))` as the final safeguard (migrations `0001` and `0002`), and registered it in the admin.
+  - Built the Skills list, add, rename and delete-confirmation pages (`skills/views.py`, `skills/urls.py`, `skills/forms.py`, three templates), and enabled the Skills nav link.
+  - Three TDD cycles. Adding a case-insensitive duplicate went RED (302 instead of 200), then GREEN with a `clean_name` check. Renaming went RED because a skill couldn't change its own capitalization, then GREEN once the check excluded the skill being edited. Delete-after-confirm went RED (POST re-showed the page), then GREEN once POST deletes and redirects.
+  - Five more normal tests: alphabetical list, nav link, add/rename pages render, valid add and rename, and the database rejecting a duplicate directly.
+  - Results: 19 tests pass; `ruff check` and `ruff format --check` pass. The user verified the phase in the browser.
+- **Deviations:**
+  - None. The user approved all three TDD behaviours and tests as proposed, and asked no follow-up questions.
+- **Sideways:**
+  - The cycle 2 test first used a local variable named `django`, which shadowed the module name, and had lines over the length limit. It was renamed and reflowed (same assertions) before being shown for approval.
+  - The skill-in-use delete block is deferred to Phase 3, as the plan specifies.
+
 ## 2026-11-02 — Implemented Phase 1: scaffold, login and base layout (TDD for login-required and logout)
 
 ### Prompts

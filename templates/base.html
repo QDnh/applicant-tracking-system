@@ -16,9 +16,9 @@
     <ul class="menu menu-horizontal gap-1 items-center">
       {% with section=request.resolver_match.namespace %}
       <li><a href="{% url 'jobs:list' %}" class="{% if section == 'jobs' %}menu-active{% endif %}">Jobs</a></li>
-      {# Candidates and Skills pages arrive in Phases 4 and 2. #}
+      {# Candidates page arrives in Phase 4. #}
       <li class="menu-disabled"><span title="Coming soon">Candidates</span></li>
-      <li class="menu-disabled"><span title="Coming soon">Skills</span></li>
+      <li><a href="{% url 'skills:list' %}" class="{% if section == 'skills' %}menu-active{% endif %}">Skills</a></li>
       {% endwith %}
       <li class="ml-2 text-sm opacity-70">{{ user.get_username }}</li>
       <li>
