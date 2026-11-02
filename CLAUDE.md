@@ -27,5 +27,5 @@ Internal, staff-only Django web app for tracking candidates, job openings, and a
 ## Maintaining this file
 
 - Only edit this file when the user asks. If something seems worth adding, suggest it instead.
-- Add only durable, project-wide facts: verified commands, established conventions, and architecture decisions. Keep the file under ~50 lines.
+- Add only durable, project-wide facts: verified commands, established conventions, and architecture decisions. Keep the file under ~70 lines.
 - Feature rules, phase details, and one-off fixes belong in the PRD, plan, tests, or code, not here.

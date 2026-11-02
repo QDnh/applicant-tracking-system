@@ -28,6 +28,38 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-11-02 — Implemented Phase 1: scaffold, login and base layout (TDD for login-required and logout)
+
+### Prompts
+1. `/implement @prd/applicant-tracking-system.md @plans/applicant-tracking-system.md implement Phase 1.`
+2. (Answer to "Run /tdd?") Yes, run /tdd.
+3. Yes.
+4. I think that should be good. It'll be a check to make sure whatever we add doesn't break the login code.
+5. Why did you use middleware rather than LoginMixin? Just curious.
+6. Yes, continue.
+7. Go for it.
+8. Yes, continue.
+9. devtools console?
+10. Everything works. Continue.
+11. (Answer to "Append PROMPTS.md?") Yes, append it.
+
+### Summary
+- **Outcome:**
+  - Set up a uv project with Django 6.1, django-tailwind-cli (DaisyUI enabled) and HTMX 2 (CDN), plus Ruff and pytest/pytest-django configured in `pyproject.toml`.
+  - Created the `config` project and four empty apps (`skills`, `jobs`, `candidates`, `applications`).
+  - Built a base layout with a nav (Jobs; Candidates and Skills greyed out until their phases; Log out as a POST form), a styled login page, a placeholder job list, and a root redirect to `/jobs/`.
+  - Two TDD cycles. Login required everywhere went RED (200 instead of 302), then GREEN once `LoginRequiredMiddleware` was added. Logout returning to the login page went RED, then GREEN once `LOGOUT_REDIRECT_URL = "login"` was set.
+  - Nine more normal tests: login reachable, `?next=` honoured, wrong password and inactive user refused, root redirect, layout, nav, Tailwind/HTMX loaded, and admin user management.
+  - Results: 11 tests pass; `ruff check` and `ruff format --check` pass. The user verified the phase in the browser.
+- **Deviations:**
+  - None from recommendations. The user approved both TDD behaviours and both tests as proposed.
+  - Follow-up questions: why I used middleware rather than `LoginRequiredMixin` (answer: the plan specifies it, protection is on by default, and one rule covers function and class views), and what the DevTools console is.
+- **Sideways:**
+  - `uv init` found the parent `CIDM3312` uv workspace and added this project to its members, which edited `../pyproject.toml` and `../uv.lock` outside the repo. This matches the user's other class projects, so it was kept and disclosed.
+  - A first shell probe of the login pages returned 400 because the test host wasn't in `ALLOWED_HOSTS`. Re-run with a `localhost` host header, it gave the expected results.
+  - Ruff flagged Django's generated stub files (unused imports, single quotes); these were auto-fixed.
+  - A stray `bash.exe.stackdump` (a Git Bash crash dump) appeared in the repo root. It was left untouched and not committed.
+
 ## 2026-11-02 — Grilled the project idea into 18 design decisions, built two prototypes, wrote the PRD
 
 ### Prompts

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Log in{% endblock %}
+
+{% block content %}
+<div class="flex justify-center pt-16">
+  <div class="card w-full max-w-sm bg-base-100 shadow">
+    <form method="post" action="{% url 'login' %}" class="card-body gap-4">
+      {% csrf_token %}
+      <h1 class="card-title text-2xl">Staff log in</h1>
+
+      {% if form.non_field_errors %}
+      <div role="alert" class="alert alert-error text-sm">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+      </div>
+      {% endif %}
+
+      <label class="form-control w-full">
+        <span class="label-text mb-1">Username</span>
+        <input type="text" name="username" value="{{ form.username.value|default:'' }}"
+               class="input input-bordered w-full" autocomplete="username" autofocus required>
+      </label>
+
+      <label class="form-control w-full">
+        <span class="label-text mb-1">Password</span>
+        <input type="password" name="password" class="input input-bordered w-full"
+               autocomplete="current-password" required>
+      </label>
+
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn btn-primary w-full">Log in</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
