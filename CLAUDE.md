@@ -22,6 +22,7 @@ Internal, staff-only Django web app for tracking candidates, job openings, and a
 ## Conventions
 
 - Views are class-based (Django generic views where they fit); user feedback goes through `django.contrib.messages`.
+- HTMX endpoints return a partial template (`_name.html` in the owning app) chosen by the calling page's `context` POST field. A refused action returns 400 with the error message as the body; HTMX doesn't swap it, so the page shows the message in an alert instead.
 - Tests live in the top-level `tests/` package (`test_*.py`), with shared fixtures in `tests/conftest.py`.
 - This project is a member of the parent `CIDM3312` uv workspace; the `.venv` and `uv.lock` live one folder up.
 
@@ -30,6 +31,7 @@ Internal, staff-only Django web app for tracking candidates, job openings, and a
 - Django built-in auth; every view requires login, enforced globally by `LoginRequiredMiddleware`. Don't add per-view login mixins or decorators; a view that must be public is wrapped with `login_not_required` in the URLconf (e.g. `login_not_required(MyView.as_view())`). No roles or per-object permissions.
 - One transition map in code is the single source of truth for legal stage moves. Templates build their stage buttons from that map instead of encoding their own rules.
 - Every stage change goes through one model-level move method, which validates against the map, records history, and runs its side effects in a single transaction. Views never set the stage directly.
+- Every new application is created through one model-level record method (`Application.record()`), which checks eligibility and writes the first stage-history row in a single transaction. Views never create applications directly.
 - Business rules are enforced on the server (form/service layer), with database constraints as the final safeguard. Hiding options in the UI is never the only check.
 
 ## References
