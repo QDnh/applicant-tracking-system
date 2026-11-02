@@ -38,14 +38,14 @@ class Application(models.Model):
     NON_BLOCKING_STAGES = [Stage.REJECTED, Stage.WITHDRAWN]
 
     # The single source of truth for legal stage moves. Each stage lists its targets in
-    # button order: the back move first (left), then the forward move (right).
-    # A stage missing from the map has no moves.
+    # button order: the back move first (left), then the forward move (right), then the
+    # final moves. A stage missing from the map (every final stage) has no moves.
     TRANSITIONS = {
-        Stage.APPLIED: [Stage.SCREENING],
-        Stage.SCREENING: [Stage.APPLIED, Stage.INTERVIEW],
-        Stage.INTERVIEW: [Stage.SCREENING, Stage.FINAL_REVIEW],
-        Stage.FINAL_REVIEW: [Stage.INTERVIEW, Stage.OFFER],
-        Stage.OFFER: [Stage.FINAL_REVIEW],
+        Stage.APPLIED: [Stage.SCREENING, Stage.REJECTED, Stage.WITHDRAWN],
+        Stage.SCREENING: [Stage.APPLIED, Stage.INTERVIEW, Stage.REJECTED, Stage.WITHDRAWN],
+        Stage.INTERVIEW: [Stage.SCREENING, Stage.FINAL_REVIEW, Stage.REJECTED, Stage.WITHDRAWN],
+        Stage.FINAL_REVIEW: [Stage.INTERVIEW, Stage.OFFER, Stage.REJECTED, Stage.WITHDRAWN],
+        Stage.OFFER: [Stage.FINAL_REVIEW, Stage.HIRED, Stage.REJECTED, Stage.WITHDRAWN],
     }
 
     class Meta:
@@ -68,18 +68,51 @@ class Application(models.Model):
     def is_active(self):
         return self.stage in self.ACTIVE_STAGES
 
+    # Button labels for moves into final stages (other moves use the stage's own label).
+    FINAL_MOVE_LABELS = {
+        Stage.HIRED: "Hire",
+        Stage.REJECTED: "Reject",
+        Stage.WITHDRAWN: "Mark as withdrawn",
+    }
+
     @property
     def moves(self):
-        """Legal moves from the current stage, in button order, for templates to render."""
+        """Legal moves from the current stage, in button order, for templates to render.
+
+        Each move has a direction: "back" (left slot), "forward" (right slot; Hire takes
+        it at Offer) or "end" (Reject and Mark as withdrawn, after the other two).
+        Moves into final stages can't be undone, so they carry a confirmation message.
+        """
         position = self.ACTIVE_STAGES.index(self.stage) if self.is_active else None
-        return [
-            {
-                "stage": target,
-                "label": self.Stage(target).label,
-                "direction": "back" if self.ACTIVE_STAGES.index(target) < position else "forward",
-            }
-            for target in self.TRANSITIONS.get(self.stage, [])
-        ]
+        moves = []
+        for target in self.TRANSITIONS.get(self.stage, []):
+            final = target not in self.ACTIVE_STAGES
+            if target == self.Stage.HIRED:
+                direction = "forward"
+            elif final:
+                direction = "end"
+            else:
+                direction = "back" if self.ACTIVE_STAGES.index(target) < position else "forward"
+            moves.append(
+                {
+                    "stage": target,
+                    "label": self.FINAL_MOVE_LABELS.get(target, self.Stage(target).label),
+                    "direction": direction,
+                    "final": final,
+                    "confirm": self.confirm_message(target) if final else None,
+                }
+            )
+        return moves
+
+    def confirm_message(self, to_stage):
+        """The confirmation shown before a move into a final stage."""
+        candidate, job = self.candidate, self.job_opening
+        action = {
+            self.Stage.HIRED: f"Hire {candidate} for {job}?",
+            self.Stage.REJECTED: f"Reject {candidate}'s application for {job}?",
+            self.Stage.WITHDRAWN: f"Mark {candidate}'s application for {job} as withdrawn?",
+        }[to_stage]
+        return f"{action} This can't be undone."
 
     @classmethod
     def blocking(cls):

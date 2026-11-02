@@ -28,6 +28,34 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-11-02 — Implemented Phase 7: Final moves with confirmation (TDD for the final-move transition rules and the job-row buttons with confirmations)
+
+### Prompts
+1. `/implement @prd/applicant-tracking-system.md @plans/applicant-tracking-system.md implement Phase 7.`
+2. (Answer to "Run /tdd?") Yes, run /tdd.
+3. yes, approved
+4. yes, approved
+5. yes, move on to behavior 2
+6. yes, approved
+7. yes, finish the rest of Phase 7
+8. Minor thing. Can we change Hired badge to green so it stands out?
+9. All good. Next.
+10. (Answers to "Append PROMPTS.md?" and "Commit and push?") Yes, append; Yes, commit and push.
+
+### Summary
+- **Outcome:**
+  - `Application.TRANSITIONS` now adds Rejected and Withdrawn to every active stage and Hired to Offer only; final stages stay out of the map, so `move_to` refuses every move out of them. `Application.moves` tags each move `back`, `forward` (Hire takes the forward slot at Offer) or `end` (Reject, Mark as withdrawn), with a `final` flag and a `confirm` message from the new `confirm_message()` naming the candidate and job and saying it can't be undone. Labels for final moves come from `FINAL_MOVE_LABELS`.
+  - `_job_row.html`: back/forward slots as before, then Reject and Mark as withdrawn on a second line of the same grid; `hx-confirm` only on final moves; Hire green, Reject red outline. Finished rows are dimmed (`opacity-50`) with no buttons, and (at the user's request) the Hired stage badge is solid green.
+  - Two TDD cycles: final-move rules through both `move_to` and the endpoint (15 cases), and per-stage button sets with confirmations only on final moves (5 cases; replaced the Phase 6 button test). Normal tests cover no moves out of any final stage (24 cases), dimmed button-less final rows on the page and in the endpoint response, and reapplying through real moves (allowed after Rejected/Withdrawn, refused after Hired).
+  - Results: 150 tests pass; `ruff check` and `ruff format --check` pass. The user checked the phase in the browser.
+- **Deviations:**
+  - The user accepted every recommendation. After browser testing they asked for a green Hired badge, which was a one-line template change; Claude noted it still shows at half strength in the dimmed row and offered, without building it, to keep the badge undimmed.
+- **Sideways:**
+  - Behavior 1's RED came from `move_to` raising its own `ValidationError` on the allowed final moves rather than a failed `assert`; Claude said so when presenting it, and 4 of the 15 cases (Hire from non-Offer stages) passed before any change since nothing could reach Hired yet.
+  - The first draft of behavior 1's test created two "Jane Doe" candidates, which would have collided on email; fixed before the first run.
+  - `ruff check` flagged one long line in the test file; `ruff format` fixed it.
+  - The Phase 6 note about the Moves buttons feeling too wide wasn't raised again this phase; the column stayed `w-80` with the final buttons on a second line.
+
 ## 2026-11-02 — Implemented Phase 6: Forward and back stage moves (TDD for the transition map, per-move history rows, and the job-row move endpoint)
 
 ### Prompts
