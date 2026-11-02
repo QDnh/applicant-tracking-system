@@ -15,6 +15,7 @@ Internal, staff-only Django web app for tracking candidates, job openings, and a
 
 - Dev server (rebuilds CSS on change): `uv run python manage.py tailwind runserver`
 - Build CSS only: `uv run python manage.py tailwind build` (output is gitignored; run after a fresh clone)
+- Migrations: `uv run python manage.py makemigrations` then `uv run python manage.py migrate` (run `migrate` after a fresh clone)
 - Tests: `uv run pytest`
 - Lint/format: `uv run ruff check` and `uv run ruff format --check`
 

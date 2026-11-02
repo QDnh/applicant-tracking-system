@@ -30,6 +30,15 @@ def skill_update(request, pk):
 
 def skill_delete(request, pk):
     skill = get_object_or_404(Skill, pk=pk)
+    job_count = skill.job_openings.count()
+    if job_count:
+        uses = "job opening uses" if job_count == 1 else "job openings use"
+        messages.error(
+            request,
+            f'Skill "{skill}" can\'t be deleted because {job_count} {uses} it. '
+            "Remove it from those jobs first.",
+        )
+        return redirect("skills:list")
     if request.method == "POST":
         skill.delete()
         messages.success(request, f'Skill "{skill}" deleted.')

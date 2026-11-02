@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Delete job opening{% endblock %}
+
+{% block content %}
+<div class="card w-full max-w-md bg-base-100 shadow">
+  <form method="post" class="card-body gap-4">
+    {% csrf_token %}
+    <h1 class="card-title text-2xl">Delete “{{ job.title }}”?</h1>
+    <p>This permanently removes the job opening. Its skills are not affected.</p>
+    <div class="flex gap-2">
+      <button type="submit" class="btn btn-error">Delete</button>
+      <a href="{% url 'jobs:detail' job.pk %}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

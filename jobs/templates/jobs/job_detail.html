@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}{{ job.title }}{% endblock %}
+
+{% block content %}
+<div class="mb-2">
+  <a href="{% url 'jobs:list' %}?status={{ job.status }}" class="link link-hover text-sm">← Job openings</a>
+</div>
+
+<div class="card bg-base-100 shadow">
+  <div class="card-body gap-4">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 class="card-title text-2xl">
+          {{ job.title }}
+          <span class="badge {% if job.is_open %}badge-success{% else %}badge-neutral{% endif %}">{{ job.get_status_display }}</span>
+        </h1>
+        <p class="opacity-70">{{ job.department|default:"No department" }}</p>
+      </div>
+      <div class="flex gap-2">
+        <form method="post" action="{% url 'jobs:toggle_status' job.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm">{% if job.is_open %}Close job{% else %}Reopen job{% endif %}</button>
+        </form>
+        <a href="{% url 'jobs:update' job.pk %}" class="btn btn-sm btn-ghost">Edit</a>
+        <a href="{% url 'jobs:delete' job.pk %}" class="btn btn-sm btn-ghost text-error">Delete</a>
+      </div>
+    </div>
+
+    <div>
+      <h2 class="font-semibold mb-1">Description</h2>
+      <p class="whitespace-pre-line">{{ job.description }}</p>
+    </div>
+
+    <div>
+      <h2 class="font-semibold mb-1">Skills</h2>
+      {% with skills=job.skills.all %}
+      {% if skills %}
+      <div class="flex flex-wrap gap-2">
+        {% for skill in skills %}<span class="badge badge-outline">{{ skill.name }}</span>{% endfor %}
+      </div>
+      {% else %}
+      <p class="opacity-70">No skills listed.</p>
+      {% endif %}
+      {% endwith %}
+    </div>
+  </div>
+</div>
+{% endblock %}

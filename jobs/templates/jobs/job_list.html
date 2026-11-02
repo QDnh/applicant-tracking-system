@@ -3,10 +3,49 @@
 {% block title %}Jobs{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold mb-4">Job openings</h1>
+<div class="flex items-center justify-between mb-4">
+  <h1 class="text-2xl font-bold">Job openings</h1>
+  <a href="{% url 'jobs:create' %}" class="btn btn-primary btn-sm">New job opening</a>
+</div>
+
+<div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+  <div role="tablist" class="tabs tabs-box">
+    {% for value, label in statuses %}
+    <a role="tab" href="?status={{ value }}{% if q %}&q={{ q|urlencode }}{% endif %}"
+       class="tab {% if status == value %}tab-active{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </div>
+  <form method="get" class="join">
+    <input type="hidden" name="status" value="{{ status }}">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search by title"
+           class="input input-bordered input-sm join-item">
+    <button type="submit" class="btn btn-sm join-item">Search</button>
+    {% if q %}<a href="?status={{ status }}" class="btn btn-sm btn-ghost join-item">Clear</a>{% endif %}
+  </form>
+</div>
+
 <div class="card bg-base-100 shadow">
   <div class="card-body">
-    <p class="opacity-70">Job openings will be listed here.</p>
+    {% if jobs %}
+    <table class="table">
+      <thead>
+        <tr><th>Title</th><th>Department</th><th>Created</th></tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr>
+          <td><a href="{% url 'jobs:detail' job.pk %}" class="link link-hover font-medium">{{ job.title }}</a></td>
+          <td>{{ job.department|default:"—" }}</td>
+          <td>{{ job.created_at|date:"M j, Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="opacity-70">
+      {% if q %}No {{ status }} job openings match “{{ q }}”.{% else %}No {{ status }} job openings.{% endif %}
+    </p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

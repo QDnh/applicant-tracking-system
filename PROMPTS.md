@@ -28,6 +28,39 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-11-02 — Implemented Phase 3: Job openings (TDD for skill delete block, list tab/search, and Open/Closed toggle)
+
+### Prompts
+1. `/implement @prd/applicant-tracking-system.md @plans/applicant-tracking-system.md implement Phase 3.`
+2. (Answer to "Run /tdd?") Yes, run /tdd.
+3. Yep
+4. Make it pass
+5. Is there a reason why the test doesn't use N>0?
+6. Leave it at N=2, move on to behavior 2
+7. Make it pass
+8. Move on to behavior 3
+9. Make it pass
+10. Go ahead
+11. Two minor things. One, it says "1 job opening use it". Two, there are no checks for duplicate job openings. I think we probably don't need to worry about the second thing though.
+12. Looks good. Continue
+13. (Answer to "Append PROMPTS.md?") Yes, append.
+
+### Summary
+- **Outcome:**
+  - Added the `JobOpening` model (title, description, optional department, Open/Closed status defaulting to Open, plain M2M to `Skill` with `related_name="job_openings"`, timestamps), migration `jobs/0001`, and admin registration.
+  - Built the job list (Open/Closed tabs + case-insensitive title search via `?status=&q=`, unknown status falls back to Open), create/edit (skills as checkboxes), detail, delete-confirmation, and a POST-only Open/Closed toggle with no confirmation (`jobs/forms.py`, `jobs/views.py`, `jobs/urls.py`, four templates).
+  - Three TDD cycles. Skill delete while in use went RED (skill was deleted), then GREEN by counting `skill.job_openings` and redirecting with an error naming N (also blocks the GET confirm page). List tab/search (six parametrized cases) went RED (unfiltered list), then GREEN with status + `title__icontains` filters. Toggle went RED (placeholder accepted GET), then GREEN with `@require_POST` flipping status both ways.
+  - Ten more normal tests: create with shared skill records, edit including skills, required fields, form pages render, detail content, skill rename reflected on jobs, in-use skill delete GET redirects, job delete keeps skills, tab links keep search, and login required on job pages.
+  - Results: 37 tests pass; `ruff check` and `ruff format --check` pass. The user verified the phase in the browser.
+- **Deviations:**
+  - The user asked why the skill-delete test didn't cover other values of N; Claude explained N=2 was the smallest count that rules out an existence-only check and offered to parametrize over N=1..3. The user chose to keep N=2.
+  - During browser verification the user spotted a grammar bug ("1 job opening use it"), fixed to "1 job opening uses it" / "N job openings use it". The singular case remains untested by choice.
+  - The user raised the lack of duplicate job-opening checks and suggested it wasn't needed; Claude agreed (each opening is one hiring round, so repeated titles are intended) and nothing was added.
+- **Sideways:**
+  - The singular verb-agreement bug slipped through because the approved test only covered N=2; caught by the user in the browser.
+  - One non-TDD test expected `&amp;` in the tab link, but Django doesn't escape literal template text; the test was corrected to the plain `&`. A long line in the new tests was reformatted by ruff.
+  - `tests/test_layout.py::test_job_list_placeholder_renders_inside_base_layout` still passes but its name is now stale; left unchanged and flagged to the user.
+
 ## 2026-11-02 — Implemented Phase 2: Skills (TDD for case-insensitive uniqueness on add/rename and confirmed delete)
 
 ### Prompts

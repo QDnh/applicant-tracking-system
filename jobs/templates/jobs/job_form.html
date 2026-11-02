@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}{% if job %}Edit job opening{% else %}New job opening{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card w-full max-w-2xl bg-base-100 shadow">
+  <form method="post" class="card-body gap-4">
+    {% csrf_token %}
+    <h1 class="card-title text-2xl">{% if job %}Edit “{{ job.title }}”{% else %}New job opening{% endif %}</h1>
+
+    {% if form.non_field_errors %}
+    <div role="alert" class="alert alert-error text-sm">
+      {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+    </div>
+    {% endif %}
+
+    {% for field in form %}
+    {% if field.name == "skills" %}
+    <fieldset class="w-full">
+      <legend class="label-text mb-1">{{ field.label }}</legend>
+      {% if field.field.queryset.exists %}
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+        {% for checkbox in field %}
+        <label class="flex items-center gap-2 cursor-pointer">{{ checkbox.tag }} <span>{{ checkbox.choice_label }}</span></label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm opacity-70">No skills yet. <a href="{% url 'skills:create' %}" class="link">Add a skill</a> first.</p>
+      {% endif %}
+      {% for error in field.errors %}<span class="text-error text-sm mt-1">{{ error }}</span>{% endfor %}
+    </fieldset>
+    {% else %}
+    <label class="form-control w-full">
+      <span class="label-text mb-1">{{ field.label }}{% if not field.field.required %} <span class="opacity-60">(optional)</span>{% endif %}</span>
+      {{ field }}
+      {% for error in field.errors %}<span class="text-error text-sm mt-1">{{ error }}</span>{% endfor %}
+    </label>
+    {% endif %}
+    {% endfor %}
+
+    <div class="flex gap-2">
+      <button type="submit" class="btn btn-primary">Save</button>
+      <a href="{% if job %}{% url 'jobs:detail' job.pk %}{% else %}{% url 'jobs:list' %}{% endif %}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
